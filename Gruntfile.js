@@ -13,7 +13,7 @@ module.exports = function (grunt)
         },
 
         mochaTest: {
-            src: [ 'test/in-mem.js', 'test/tcp.js', 'test/example/example.js' ],
+            src: [ 'test/in-mem.js', 'test/tcp.js' ],
             options: {
                 bail: true
             }

@@ -32,12 +32,11 @@ function AccessControl(allowed_topics, disallowed_topics)
         }
         else
         {
-            this._warning('blocked subscribe to topic: ' + topic);
-            done();
+            done(new Error('blocked subscribe to topic: ' + topic));
         }
     };
 
-    this._unsubscribe_requested = function (topic, duplex, options, done)
+    this._publish_requested = function (topic, duplex, options, done)
     {
         if (allowed(topic))
         {
@@ -45,8 +44,7 @@ function AccessControl(allowed_topics, disallowed_topics)
         }
         else
         {
-            this._warning('blocked publish to topic: ' + topic);
-            done();
+            done(new Error('blocked publish to topic: ' + topic));
         }
     };
 
@@ -55,11 +53,13 @@ function AccessControl(allowed_topics, disallowed_topics)
 
 AccessControl.prototype.reset = function (allowed_topics, disallowed_topics)
 {
+    var topic;
+
     if (allowed_topics &&
         typeof allowed_topics[Symbol.iterator] === 'function')
     {
         this._allowed_matcher = new QlobberDedup();
-        for (var topic of allowed_topics)
+        for (topic of allowed_topics)
         {
             this._allowed_matcher.add(topic, true);
         }
@@ -73,7 +73,7 @@ AccessControl.prototype.reset = function (allowed_topics, disallowed_topics)
         typeof disallowed_topics[Symbol.iterator] === 'function')
     {
         this._disallowed_match = new QlobberDedup();
-        for (var topic of disallowed_topics)
+        for (topic of disallowed_topics)
         {
             this._disallowed_matcher.add(topic, true);
         }
