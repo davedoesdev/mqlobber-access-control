@@ -16,6 +16,7 @@ var path = require('path'),
     expect = chai.expect;
 
 var timeout = 5;
+var num_queues = 10;
 
 function read_all(s, cb)
 {
@@ -132,138 +133,187 @@ describe(type, function ()
         });
     }
 
-    function sub_pub_unsub(mq, cb)
+    function sub_pub_unsub(mqs, cb)
     {
-        mq.client.subscribe('foo.bar', function (s, info)
+        var count = 0;
+
+        function done()
         {
-            expect(info.single).to.equal(false);
-            expect(info.topic).to.equal('foo.bar');
-
-            var now = Date.now(), expires = info.expires * 1000;
-
-            expect(expires).to.be.above(now);
-            expect(expires).to.be.below(now + timeout * 1000);
-
-            read_all(s, function (v)
+            count += 1;
+            if (count === mqs.length * mqs.length)
             {
-                expect(v.toString()).to.equal('bar');
-                mq.client.unsubscribe('foo.bar', undefined, cb);
-            });
+                async.each(mqs, function (mq, cb)
+                {
+                    mq.client.unsubscribe('foo.bar', undefined, cb);
+                }, cb);
+            }
+            else if (count > mqs.length * mqs.length)
+            {
+                cb(new Error('called too many times'));
+            }
+        }
+
+        async.each(mqs, function (mq, cb)
+        {
+            mq.client.subscribe('foo.bar', function (s, info)
+            {
+                expect(info.single).to.equal(false);
+                expect(info.topic).to.equal('foo.bar');
+
+                var now = Date.now(), expires = info.expires * 1000;
+
+                expect(expires).to.be.above(now);
+                expect(expires).to.be.below(now + timeout * 1000);
+
+                read_all(s, function (v)
+                {
+                    expect(v.toString()).to.equal('bar');
+                    done();
+                });
+            }, cb);
         }, function (err)
         {
             if (err) { return cb(err); }
-            mq.client.publish('foo.bar', function (err)
+            
+            async.each(mqs, function (mq, cb)
+            {
+                mq.client.publish('foo.bar', cb).end('bar');
+            }, function (err)
             {
                 if (err) { return cb(err); }
-            }).end('bar');
-        });
-    }
-
-    with_mqs(1, 'subscribe, publish and unsubscribe when empty access control is attached', function (mqs, cb)
-    {
-        var ac = new AccessControl();
-        ac.attach(mqs[0].server);
-        sub_pub_unsub(mqs[0], cb);
-    });
-
-    function blocked_sub_pub_unsub(mq, cb)
-    {
-        var warnings = [];
-
-        mq.server.on('warning', function (err, duplex)
-        {
-            expect(duplex).to.be.an.instanceof(stream.Duplex);
-            warnings.push(err.message);
-        });
-
-        mq.client.subscribe('foo.bar', function ()
-        {
-            cb(new Error('should not be called'));
-        }, function (err)
-        {
-            expect(err.message).to.equal('server error');
-            mq.client.publish('foo.bar', function (err)
-            {
-                expect(err.message).to.equal('server error');
-                mq.client.unsubscribe('foo.bar', undefined, function (err)
-                {
-                    expect(warnings).to.eql(['blocked subscribe to topic: foo.bar',
-                                             'blocked publish to topic: foo.bar']);
-                    cb(err);
-                });
             });
         });
-
     }
 
-    with_mqs(1, 'single-allowed access control should block subscribe and publish but not unsubscribe', function (mqs, cb)
+    with_mqs(num_queues, 'subscribe, publish and unsubscribe when empty access control is attached', function (mqs, cb)
+    {
+        var ac = new AccessControl();
+        for (var mq of mqs)
+        {
+            ac.attach(mq.server);
+        }
+        sub_pub_unsub(mqs, cb);
+    });
+
+    function blocked_sub_pub_unsub(mqs, cb)
+    {
+        async.each(mqs, function (mq, cb)
+        {
+            var warnings = [];
+
+            mq.server.on('warning', function (err, duplex)
+            {
+                expect(duplex).to.be.an.instanceof(stream.Duplex);
+                warnings.push(err.message);
+            });
+
+            mq.client.subscribe('foo.bar', function ()
+            {
+                cb(new Error('should not be called'));
+            }, function (err)
+            {
+                expect(err.message).to.equal('server error');
+                mq.client.publish('foo.bar', function (err)
+                {
+                    expect(err.message).to.equal('server error');
+                    mq.client.unsubscribe('foo.bar', undefined, function (err)
+                    {
+                        expect(warnings).to.eql(['blocked subscribe to topic: foo.bar',
+                                                 'blocked publish to topic: foo.bar']);
+                        cb(err);
+                    });
+                });
+            });
+        }, cb);
+    }
+
+    with_mqs(num_queues, 'single-allowed access control should block subscribe and publish but not unsubscribe', function (mqs, cb)
     {
         var ac = new AccessControl(['some topic']);
-        ac.attach(mqs[0].server);
-        blocked_sub_pub_unsub(mqs[0], cb);
+        for (var mq of mqs)
+        {
+            ac.attach(mq.server);
+        }
+        blocked_sub_pub_unsub(mqs, cb);
     });
 
-    with_mqs(1, 'should not block with topic in allowed access control', function (mqs, cb)
+    with_mqs(num_queues, 'should not block with topic in allowed access control', function (mqs, cb)
     {
         var ac = new AccessControl(['foo.bar']);
-        ac.attach(mqs[0].server);
-        sub_pub_unsub(mqs[0], cb);
+        for (var mq of mqs)
+        {
+            ac.attach(mq.server);
+        }
+        sub_pub_unsub(mqs, cb);
     });
 
-    with_mqs(1, 'wildcard access control should block', function (mqs, cb)
+    with_mqs(num_queues, 'wildcard access control should block', function (mqs, cb)
     {
         var ac = new AccessControl(['*']);
-        ac.attach(mqs[0].server);
-        blocked_sub_pub_unsub(mqs[0], function (err)
+        for (var mq of mqs)
+        {
+            ac.attach(mq.server);
+        }
+        blocked_sub_pub_unsub(mqs, function (err)
         {
             if (err) { return cb(err); }
             ac.reset(['foo.*']);
-            sub_pub_unsub(mqs[0], function (err)
+            sub_pub_unsub(mqs, function (err)
             {
                 if (err) { return cb(err); }
                 ac.reset(['#']);
-                sub_pub_unsub(mqs[0], cb);
+                sub_pub_unsub(mqs, cb);
             });
         });
     });
 
-    with_mqs(1, 'should be able to detach', function (mqs, cb)
+    with_mqs(num_queues, 'should be able to detach', function (mqs, cb)
     {
         var ac = new AccessControl(['something']);
-        ac.attach(mqs[0].server);
-        blocked_sub_pub_unsub(mqs[0], function (err)
+        for (var mq of mqs)
+        {
+            ac.attach(mq.server);
+        }
+        blocked_sub_pub_unsub(mqs, function (err)
         {
             if (err) { return cb(err); }
-            ac.detach(mqs[0].server);
-            sub_pub_unsub(mqs[0], cb);
+            for (var mq of mqs)
+            {
+                ac.detach(mq.server);
+            }
+            sub_pub_unsub(mqs, cb);
         });
     });
 
-    with_mqs(1, 'should support multiple allowed topics', function (mqs, cb)
+    with_mqs(num_queues, 'should support multiple allowed topics', function (mqs, cb)
     {
         var ac = new AccessControl(['something', 'foo.bar']);
-        ac.attach(mqs[0].server);
-        sub_pub_unsub(mqs[0], cb);
+        for (var mq of mqs)
+        {
+            ac.attach(mq.server);
+        }
+        sub_pub_unsub(mqs, cb);
     });
 
-    with_mqs(1, 'should support disallowed topic', function (mqs, cb)
+    with_mqs(num_queues, 'should support disallowed topic', function (mqs, cb)
     {
         var ac = new AccessControl(['something', 'foo.bar'], ['foo.*']);
-        ac.attach(mqs[0].server);
-        blocked_sub_pub_unsub(mqs[0], function (err)
+        for (var mq of mqs)
+        {
+            ac.attach(mq.server);
+        }
+        blocked_sub_pub_unsub(mqs, function (err)
         {
             if (err) { return cb(err); }
             ac.reset(['something', 'foo.bar'], ['*']);
-            sub_pub_unsub(mqs[0], function (err)
+            sub_pub_unsub(mqs, function (err)
             {
                 if (err) { return cb(err); }
                 ac.reset(['something', 'foo.bar'], ['*', '#']);
-                blocked_sub_pub_unsub(mqs[0], cb);
+                blocked_sub_pub_unsub(mqs, cb);
             });
         });
     });
-
-    // should be able to attach to multiple mqs
 
     // should not affect other mqs if not attached
 
