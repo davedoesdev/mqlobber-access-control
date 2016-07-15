@@ -1,22 +1,44 @@
+/*
+# mqlobber-access-control&nbsp;&nbsp;&nbsp;[![Build Status](https://travis-ci.org/davedoesdev/mqlobber-access-control.png)](https://travis-ci.org/davedoesdev/mqlobber-access-control) [![Coverage Status](https://coveralls.io/repos/davedoesdev/mqlobber-access-control/badge.png?branch=master&service=github)](https://coveralls.io/r/davedoesdev/mqlobber-access-control?branch=master) [![NPM version](https://badge.fury.io/js/mqlobber-access-control.png)](http://badge.fury.io/js/mqlobber-access-control)
+
+Access control for [mqlobber](https://github.com/davedoesdev/mqlobber) message
+queues. Specify to which topics clients can (and can't) subscribe and publish.
+
+The API is described [here](#api).
+
+## Example:
+
+Here's a server program which listens on a TCP port specified on the command
+line. It allows clients to:
+
+- Publish messages to topics matching `foo.#` (i.e. any topic beginning with `foo.`)
+- Subscribe to messages with topics matching `foo.#`
+
+
+
+```javascript
+
+
+```
+
+
+*/
 var QlobberDedup = require('qlobber').QlobberDedup;
 
-function AccessControl(allowed_topics, disallowed_topics)
+function AccessControl(options)
 {
-    this._allowed_matcher = null;
-    this._disallowed_matcher = null;
-
     var ths = this;
 
-    function allowed(topic)
+    function allow(type, topic)
     {
-        if (ths._disallowed_matcher &&
-            ths._disallowed_matcher.match(topic).size > 0)
+        if (ths._matchers[type].disallow &&
+            ths._matchers[type].disallow.match(topic).size > 0)
         {
             return false;
         }
 
-        if (ths._allowed_matcher &&
-            ths._allowed_matcher.match(topic).size === 0)
+        if (ths._matchers[type].allow &&
+            ths._matchers[type].allow.match(topic).size === 0)
         {
             return false;
         }
@@ -26,7 +48,7 @@ function AccessControl(allowed_topics, disallowed_topics)
 
     this._subscribe_requested = function (topic, done)
     {
-        if (allowed(topic))
+        if (allow('subscribe', topic))
         {
             this.subscribe(topic, done);
         }
@@ -38,7 +60,7 @@ function AccessControl(allowed_topics, disallowed_topics)
 
     this._publish_requested = function (topic, duplex, options, done)
     {
-        if (allowed(topic))
+        if (allow('publish', topic))
         {
             duplex.pipe(this.fsq.publish(topic, options, done));
         }
@@ -48,40 +70,40 @@ function AccessControl(allowed_topics, disallowed_topics)
         }
     };
 
-    this.reset(allowed_topics, disallowed_topics);
+    this.reset(options);
 }
 
-AccessControl.prototype.reset = function (allowed_topics, disallowed_topics)
+AccessControl.prototype.reset = function (options)
 {
-    var topic;
+    var ths = this, topic;
 
-    if (allowed_topics &&
-        typeof allowed_topics[Symbol.iterator] === 'function')
+    options = options || {};
+
+    this._matchers = {
+        publish: {},
+        subscribe: {}
+    };
+
+    function make(type, access)
     {
-        this._allowed_matcher = new QlobberDedup();
-        for (topic of allowed_topics)
+        if (options[type] && options[type][access])
         {
-            this._allowed_matcher.add(topic, true);
+            ths._matchers[type][access] = new QlobberDedup();
+            for (topic of options[type][access])
+            {
+                ths._matchers[type][access].add(topic, true);
+            }
         }
     }
-    else
+
+    function setup(type)
     {
-        this._allowed_matcher = null;
+        make(type, 'allow');
+        make(type, 'disallow');
     }
 
-    if (disallowed_topics &&
-        typeof disallowed_topics[Symbol.iterator] === 'function')
-    {
-        this._disallowed_matcher = new QlobberDedup();
-        for (topic of disallowed_topics)
-        {
-            this._disallowed_matcher.add(topic, true);
-        }
-    }
-    else
-    {
-        this._disallowed_matcher = null;
-    }
+    setup('publish');
+    setup('subscribe');
 };
 
 AccessControl.prototype.attach = function (server)

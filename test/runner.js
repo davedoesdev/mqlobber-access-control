@@ -227,9 +227,13 @@ describe(type, function ()
         }, cb);
     }
 
-    with_mqs(num_queues, 'single-allowed access control should block subscribe and publish but not unsubscribe', function (mqs, cb)
+    with_mqs(num_queues, 'single-allow access control should block subscribe and publish but not unsubscribe', function (mqs, cb)
     {
-        var ac = new AccessControl(['some topic']);
+        var ac = new AccessControl(
+        {
+            publish: { allow: ['some topic'] },
+            subscribe: { allow: ['some topic'] }
+        });
         for (var mq of mqs)
         {
             ac.attach(mq.server);
@@ -239,7 +243,11 @@ describe(type, function ()
 
     with_mqs(num_queues, 'should not block with topic in allowed access control', function (mqs, cb)
     {
-        var ac = new AccessControl(['foo.bar']);
+        var ac = new AccessControl(
+        {
+            publish: { allow: ['foo.bar'] },
+            subscribe: { allow: ['foo.bar'] }
+        });
         for (var mq of mqs)
         {
             ac.attach(mq.server);
@@ -249,7 +257,11 @@ describe(type, function ()
 
     with_mqs(num_queues, 'wildcard access control should block', function (mqs, cb)
     {
-        var ac = new AccessControl(['*']);
+        var ac = new AccessControl(
+        {
+            publish: { allow: ['*'] },
+            subscribe: { allow: ['*'] }
+        });
         for (var mq of mqs)
         {
             ac.attach(mq.server);
@@ -257,11 +269,19 @@ describe(type, function ()
         blocked_sub_pub_unsub(mqs, function (err)
         {
             if (err) { return cb(err); }
-            ac.reset(['foo.*']);
+            ac.reset(
+            {
+                publish: { allow: ['foo.*'] },
+                subscribe: { allow: ['foo.*'] }
+            });
             sub_pub_unsub(mqs, function (err)
             {
                 if (err) { return cb(err); }
-                ac.reset(['#']);
+                ac.reset(
+                {
+                    publish: { allow: ['#'] },
+                    subscribe: { allow: ['#'] }
+                });
                 sub_pub_unsub(mqs, cb);
             });
         });
@@ -269,7 +289,11 @@ describe(type, function ()
 
     with_mqs(num_queues, 'should be able to detach', function (mqs, cb)
     {
-        var ac = new AccessControl(['something']);
+        var ac = new AccessControl(
+        {
+            publish: { allow: ['something'] },
+            subscribe: { allow: ['something'] }
+        });
         for (var mq of mqs)
         {
             ac.attach(mq.server);
@@ -287,7 +311,11 @@ describe(type, function ()
 
     with_mqs(num_queues, 'should support multiple allowed topics', function (mqs, cb)
     {
-        var ac = new AccessControl(['something', 'foo.bar']);
+        var ac = new AccessControl(
+        {
+            publish: { allow: ['something', 'foo.bar'] },
+            subscribe: { allow: ['something', 'foo.bar'] }
+        });
         for (var mq of mqs)
         {
             ac.attach(mq.server);
@@ -297,7 +325,13 @@ describe(type, function ()
 
     with_mqs(num_queues, 'should support disallowed topics', function (mqs, cb)
     {
-        var ac = new AccessControl(['something', 'foo.bar'], ['foo.*']);
+        var ac = new AccessControl(
+        {
+            publish: { allow: ['something', 'foo.bar'],
+                       disallow: ['foo.*'] },
+            subscribe: { allow: ['something', 'foo.bar'],
+                         disallow: ['foo.*'] }
+        });
         for (var mq of mqs)
         {
             ac.attach(mq.server);
@@ -305,11 +339,23 @@ describe(type, function ()
         blocked_sub_pub_unsub(mqs, function (err)
         {
             if (err) { return cb(err); }
-            ac.reset(['something', 'foo.bar'], ['*']);
+            ac.reset(
+            {
+                publish: { allow: ['something', 'foo.bar'],
+                           disallow: ['*'] },
+                subscribe: { allow: ['something', 'foo.bar'],
+                             disallow: ['*'] },
+            });
             sub_pub_unsub(mqs, function (err)
             {
                 if (err) { return cb(err); }
-                ac.reset(['something', 'foo.bar'], ['*', '#']);
+                ac.reset(
+                {
+                    publish: { allow: ['something', 'foo.bar'],
+                               disallow: ['*', '#'] },
+                    subscribe: { allow: ['something', 'foo.bar'],
+                                 disallow: ['*', '#'] }
+                });
                 blocked_sub_pub_unsub(mqs, cb);
             });
         });
@@ -320,7 +366,11 @@ describe(type, function ()
     {
         var mqs1 = mqs.slice(0, num_queues),
             mqs2 = mqs.slice(num_queues),
-            ac = new AccessControl([]);
+            ac = new AccessControl(
+            {
+                publish: { allow: [] },
+                subscribe: { allow: [] }
+            });
          
         for (var mq of mqs1)
         {
@@ -337,5 +387,7 @@ describe(type, function ()
                 sub_pub_unsub(mqs2, cb);
             }], cb);
     });
+
+    // add tests for separate pub and sub
 });
 };
