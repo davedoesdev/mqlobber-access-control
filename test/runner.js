@@ -15,7 +15,7 @@ var path = require('path'),
     chai = require('chai'),
     expect = chai.expect;
 
-var timeout = 5 * 60;
+var timeout = 5;
 
 function read_all(s, cb)
 {
@@ -132,15 +132,12 @@ describe(type, function ()
         });
     }
 
-    with_mqs(1, 'subscribe, publish and unsubscribe when empty access control is attached', function (mqs, cb)
+    function sub_pub_unsub(mq, cb)
     {
-        var ac = new AccessControl();
-        ac.attach(mqs[0].server);
-
-        mqs[0].client.subscribe('foo', function (s, info)
+        mq.client.subscribe('foo.bar', function (s, info)
         {
             expect(info.single).to.equal(false);
-            expect(info.topic).to.equal('foo');
+            expect(info.topic).to.equal('foo.bar');
 
             var now = Date.now(), expires = info.expires * 1000;
 
@@ -150,50 +147,89 @@ describe(type, function ()
             read_all(s, function (v)
             {
                 expect(v.toString()).to.equal('bar');
-                mqs[0].client.unsubscribe('foo', undefined, cb);
+                mq.client.unsubscribe('foo.bar', undefined, cb);
             });
         }, function (err)
         {
             if (err) { return cb(err); }
-            mqs[0].client.publish('foo', function (err)
+            mq.client.publish('foo.bar', function (err)
             {
                 if (err) { return cb(err); }
             }).end('bar');
         });
+    }
+
+    with_mqs(1, 'subscribe, publish and unsubscribe when empty access control is attached', function (mqs, cb)
+    {
+        var ac = new AccessControl();
+        ac.attach(mqs[0].server);
+        sub_pub_unsub(mqs[0], cb);
     });
 
-    with_mqs(1, 'single-allowed access control should block subscribe and publish', function (mqs, cb)
+    function blocked_sub_pub_unsub(mq, cb)
     {
-        var ac = new AccessControl(['some topic']);
-        ac.attach(mqs[0].server);
-
         var warnings = [];
 
-        mqs[0].server.on('warning', function (err, duplex)
+        mq.server.on('warning', function (err, duplex)
         {
             expect(duplex).to.be.an.instanceof(stream.Duplex);
             warnings.push(err.message);
         });
 
-        mqs[0].client.subscribe('foo', function ()
+        mq.client.subscribe('foo.bar', function ()
         {
             cb(new Error('should not be called'));
         }, function (err)
         {
             expect(err.message).to.equal('server error');
-            mqs[0].client.publish('foo', function (err)
+            mq.client.publish('foo.bar', function (err)
             {
                 expect(err.message).to.equal('server error');
-                expect(warnings).to.eql(['blocked subscribe to topic: foo',
-                                         'blocked publish to topic: foo']);
-                cb();
+                mq.client.unsubscribe('foo.bar', undefined, function (err)
+                {
+                    expect(warnings).to.eql(['blocked subscribe to topic: foo.bar',
+                                             'blocked publish to topic: foo.bar']);
+                    cb(err);
+                });
+            });
+        });
+
+    }
+
+    with_mqs(1, 'single-allowed access control should block subscribe and publish but not unsubscribe', function (mqs, cb)
+    {
+        var ac = new AccessControl(['some topic']);
+        ac.attach(mqs[0].server);
+        blocked_sub_pub_unsub(mqs[0], cb);
+    });
+
+    with_mqs(1, 'should not block with topic in allowed access control', function (mqs, cb)
+    {
+        var ac = new AccessControl(['foo.bar']);
+        ac.attach(mqs[0].server);
+        sub_pub_unsub(mqs[0], cb);
+    });
+
+    with_mqs(1, 'wildcard access control should block', function (mqs, cb)
+    {
+        var ac = new AccessControl(['*']);
+        ac.attach(mqs[0].server);
+        blocked_sub_pub_unsub(mqs[0], function (err)
+        {
+            if (err) { return cb(err); }
+            ac.reset(['foo.*']);
+            sub_pub_unsub(mqs[0], function (err)
+            {
+                if (err) { return cb(err); }
+                ac.reset(['#']);
+                sub_pub_unsub(mqs[0], cb);
             });
         });
     });
 
-    // should not block unsubscribe
-
     // test how wildcards work
+
+    // should not affect other mqs
 
 });
 };
