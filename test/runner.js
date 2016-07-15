@@ -227,9 +227,45 @@ describe(type, function ()
         });
     });
 
-    // test how wildcards work
+    with_mqs(1, 'should be able to detach', function (mqs, cb)
+    {
+        var ac = new AccessControl(['something']);
+        ac.attach(mqs[0].server);
+        blocked_sub_pub_unsub(mqs[0], function (err)
+        {
+            if (err) { return cb(err); }
+            ac.detach(mqs[0].server);
+            sub_pub_unsub(mqs[0], cb);
+        });
+    });
 
-    // should not affect other mqs
+    with_mqs(1, 'should support multiple allowed topics', function (mqs, cb)
+    {
+        var ac = new AccessControl(['something', 'foo.bar']);
+        ac.attach(mqs[0].server);
+        sub_pub_unsub(mqs[0], cb);
+    });
+
+    with_mqs(1, 'should support disallowed topic', function (mqs, cb)
+    {
+        var ac = new AccessControl(['something', 'foo.bar'], ['foo.*']);
+        ac.attach(mqs[0].server);
+        blocked_sub_pub_unsub(mqs[0], function (err)
+        {
+            if (err) { return cb(err); }
+            ac.reset(['something', 'foo.bar'], ['*']);
+            sub_pub_unsub(mqs[0], function (err)
+            {
+                if (err) { return cb(err); }
+                ac.reset(['something', 'foo.bar'], ['*', '#']);
+                blocked_sub_pub_unsub(mqs[0], cb);
+            });
+        });
+    });
+
+    // should be able to attach to multiple mqs
+
+    // should not affect other mqs if not attached
 
 });
 };

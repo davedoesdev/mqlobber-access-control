@@ -72,7 +72,7 @@ AccessControl.prototype.reset = function (allowed_topics, disallowed_topics)
     if (disallowed_topics &&
         typeof disallowed_topics[Symbol.iterator] === 'function')
     {
-        this._disallowed_match = new QlobberDedup();
+        this._disallowed_matcher = new QlobberDedup();
         for (topic of disallowed_topics)
         {
             this._disallowed_matcher.add(topic, true);
