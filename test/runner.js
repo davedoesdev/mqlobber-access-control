@@ -295,7 +295,7 @@ describe(type, function ()
         sub_pub_unsub(mqs, cb);
     });
 
-    with_mqs(num_queues, 'should support disallowed topic', function (mqs, cb)
+    with_mqs(num_queues, 'should support disallowed topics', function (mqs, cb)
     {
         var ac = new AccessControl(['something', 'foo.bar'], ['foo.*']);
         for (var mq of mqs)
@@ -315,7 +315,27 @@ describe(type, function ()
         });
     });
 
-    // should not affect other mqs if not attached
+    with_mqs(num_queues * 2, 'should not affect unattached message queues',
+    function (mqs, cb)
+    {
+        var mqs1 = mqs.slice(0, num_queues),
+            mqs2 = mqs.slice(num_queues),
+            ac = new AccessControl([]);
+         
+        for (var mq of mqs1)
+        {
+            ac.attach(mq.server);
+        }
 
+        async.parallel([
+            function (cb)
+            {
+                blocked_sub_pub_unsub(mqs1, cb);
+            },
+            function (cb)
+            {
+                sub_pub_unsub(mqs2, cb);
+            }], cb);
+    });
 });
 };
