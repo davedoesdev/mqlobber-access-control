@@ -201,11 +201,22 @@ describe(type, function ()
         {
             var warnings = [];
 
-            mq.server.on('warning', function (err, duplex)
+            function warning(err, duplex)
             {
                 expect(duplex).to.be.an.instanceof(stream.Duplex);
                 warnings.push(err.message);
-            });
+
+                if (err.message === 'unexpected data')
+                {
+                    expect(warnings).to.eql(['blocked subscribe to topic: foo.bar',
+                                             'blocked publish to topic: foo.bar',
+                                             'unexpected data']);
+                    this.removeListener('warning', warning);
+                    cb();
+                }
+            }
+
+            mq.server.on('warning', warning);
 
             mq.client.subscribe('foo.bar', function ()
             {
@@ -218,11 +229,11 @@ describe(type, function ()
                     expect(err.message).to.equal('server error');
                     mq.client.unsubscribe('foo.bar', undefined, function (err)
                     {
+                        if (err) { return cb(err); }
                         expect(warnings).to.eql(['blocked subscribe to topic: foo.bar',
                                                  'blocked publish to topic: foo.bar']);
-                        cb(err);
                     });
-                });
+                }).end('bar');
             });
         }, cb);
     }
@@ -430,7 +441,8 @@ describe(type, function ()
                     expect(v.toString()).to.equal('bar');
                     expect(warnings).to.eql([
                         'blocked subscribe to topic: foo.bar',
-                        'blocked publish to topic: foo.hello']);
+                        'blocked publish to topic: foo.hello',
+                        'unexpected data']);
                     expect(blocked).to.eql([
                         'subscribe foo.bar',
                         'publish foo.hello']);
