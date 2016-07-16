@@ -23,10 +23,16 @@ line. It allows clients to:
 
 
 */
-var QlobberDedup = require('qlobber').QlobberDedup;
+"use strict";
+
+var EventEmitter = require('events').EventEmitter,
+    util = require('util'),
+    QlobberDedup = require('qlobber').QlobberDedup;
 
 function AccessControl(options)
 {
+    EventEmitter.call(this);
+
     var ths = this;
 
     function allow(type, topic)
@@ -50,28 +56,28 @@ function AccessControl(options)
     {
         if (allow('subscribe', topic))
         {
-            this.subscribe(topic, done);
+            return this.subscribe(topic, done);
         }
-        else
-        {
-            done(new Error('blocked subscribe to topic: ' + topic));
-        }
+
+        done(new Error('blocked subscribe to topic: ' + topic));
+        ths.emit('subscribe_blocked', topic);
     };
 
     this._publish_requested = function (topic, duplex, options, done)
     {
         if (allow('publish', topic))
         {
-            duplex.pipe(this.fsq.publish(topic, options, done));
+            return duplex.pipe(this.fsq.publish(topic, options, done));
         }
-        else
-        {
-            done(new Error('blocked publish to topic: ' + topic));
-        }
+
+        done(new Error('blocked publish to topic: ' + topic));
+        ths.emit('publish_blocked', topic);
     };
 
     this.reset(options);
 }
+
+util.inherits(AccessControl, EventEmitter);
 
 AccessControl.prototype.reset = function (options)
 {

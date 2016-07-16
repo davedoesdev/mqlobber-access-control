@@ -388,6 +388,67 @@ describe(type, function ()
             }], cb);
     });
 
-    // add tests for separate pub and sub
+    with_mqs(1, 'should apply access control separately to publish and subscribe', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+        {
+            subscribe: { allow: ['foo.*'],
+                         disallow: ['foo.bar'] },
+            publish: { allow: ['foo.bar'],
+                       disallow: ['foo.hello'] }
+        });
+
+        var mq = mqs[0], warnings = [], blocked = [];
+
+        ac.attach(mq.server);
+
+        mq.server.on('warning', function (err)
+        {
+            warnings.push(err.message);
+        });
+
+        ac.on('subscribe_blocked', function (topic)
+        {
+            blocked.push('subscribe ' + topic);
+        });
+
+        ac.on('publish_blocked', function (topic)
+        {
+            blocked.push('publish ' + topic);
+        });
+
+        mq.client.subscribe('foo.bar', function ()
+        {
+            cb(new Error('should not be called'));
+        }, function (err)
+        {
+            expect(err.message).to.equal('server error');
+            mq.client.subscribe('foo.#', function (s)
+            {
+                read_all(s, function (v)
+                {
+                    expect(v.toString()).to.equal('bar');
+                    expect(warnings).to.eql([
+                        'blocked subscribe to topic: foo.bar',
+                        'blocked publish to topic: foo.hello']);
+                    expect(blocked).to.eql([
+                        'subscribe foo.bar',
+                        'publish foo.hello']);
+                    cb();
+                });
+            }, function (err)
+            {
+                if (err) { return cb(err); }
+                mq.client.publish('foo.hello', function (err)
+                {
+                    expect(err.message).to.equal('server error');
+                    mq.client.publish('foo.bar', function (err)
+                    {
+                        if (err) { return cb(err); }
+                    }).end('bar');
+                }).end('bar');
+            });
+        });
+    });
 });
 };
