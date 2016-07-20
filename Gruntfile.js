@@ -13,14 +13,14 @@ module.exports = function (grunt)
         },
 
         mochaTest: {
-            src: [ 'test/in-mem.js', 'test/tcp.js' ],
+            src: [ 'test/in-mem.js', 'test/tcp.js', 'test/example/example.js' ],
             options: {
                 bail: true
             }
         },
 
         apidox: {
-            input: 'index.js',
+            input: [ 'index.js', 'events_doc.js' ],
             output: 'README.md',
             fullSourceDescription: true,
             extraHeadingLevels: 1

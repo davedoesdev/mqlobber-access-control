@@ -1,4 +1,3 @@
-/*
 # mqlobber-access-control&nbsp;&nbsp;&nbsp;[![Build Status](https://travis-ci.org/davedoesdev/mqlobber-access-control.png)](https://travis-ci.org/davedoesdev/mqlobber-access-control) [![Coverage Status](https://coveralls.io/repos/davedoesdev/mqlobber-access-control/badge.png?branch=master&service=github)](https://coveralls.io/r/davedoesdev/mqlobber-access-control?branch=master) [![NPM version](https://badge.fury.io/js/mqlobber-access-control.png)](http://badge.fury.io/js/mqlobber-access-control)
 
 Access control for [mqlobber](https://github.com/davedoesdev/mqlobber) message
@@ -198,79 +197,39 @@ grunt coverage
 Coveralls page is [here](https://coveralls.io/r/davedoesdev/mqlobber-access-control).
 
 #API
-*/
-"use strict";
 
-var EventEmitter = require('events').EventEmitter,
-    util = require('util'),
-    QlobberDedup = require('qlobber').QlobberDedup;
+<a name="tableofcontents"></a>
 
-/**
-Create a new `AccessControl` object for applying access control on publish
+- <a name="toc_accesscontroloptions"></a>[AccessControl](#accesscontroloptions)
+- <a name="toc_accesscontrolprototyperesetoptions"></a><a name="toc_accesscontrolprototype"></a>[AccessControl.prototype.reset](#accesscontrolprototyperesetoptions)
+- <a name="toc_accesscontrolprototypeattachserver"></a>[AccessControl.prototype.attach](#accesscontrolprototypeattachserver)
+- <a name="toc_accesscontrolprototypedetachserver"></a>[AccessControl.prototype.detach](#accesscontrolprototypedetachserver)
+- <a name="toc_accesscontroleventssubscribe_blockedtopic"></a><a name="toc_accesscontrolevents"></a>[AccessControl.events.subscribe_blocked](#accesscontroleventssubscribe_blockedtopic)
+- <a name="toc_accesscontroleventspublish_blocked"></a>[AccessControl.events.publish_blocked](#accesscontroleventspublish_blocked)
+
+## AccessControl(options)
+
+> Create a new `AccessControl` object for applying access control on publish
 and subscribe requests to [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) objects.
 
 Calls [`reset`](#accesscontrolprototyperesetoptions) after creating the object.
 
-@constructor
+**Parameters:**
 
-@param {Object} options See [`reset`](#accesscontrolprototyperesetoptions) for valid options.
-*/
-function AccessControl(options)
-{
-    EventEmitter.call(this);
+- `{Object} options` See [`reset`](#accesscontrolprototyperesetoptions) for valid options.
 
-    var ths = this;
+<sub>Go: [TOC](#tableofcontents)</sub>
 
-    function allow(type, topic)
-    {
-        if (ths._matchers[type].disallow &&
-            ths._matchers[type].disallow.match(topic).size > 0)
-        {
-            return false;
-        }
+<a name="accesscontrolprototype"></a>
 
-        if (ths._matchers[type].allow &&
-            ths._matchers[type].allow.match(topic).size === 0)
-        {
-            return false;
-        }
+## AccessControl.prototype.reset(options)
 
-        return true;
-    }
-
-    this._subscribe_requested = function (topic, done)
-    {
-        if (allow('subscribe', topic))
-        {
-            return this.subscribe(topic, done);
-        }
-
-        done(new Error('blocked subscribe to topic: ' + topic));
-        ths.emit('subscribe_blocked', topic);
-    };
-
-    this._publish_requested = function (topic, duplex, options, done)
-    {
-        if (allow('publish', topic))
-        {
-            return duplex.pipe(this.fsq.publish(topic, options, done));
-        }
-
-        done(new Error('blocked publish to topic: ' + topic));
-        ths.emit('publish_blocked', topic);
-    };
-
-    this.reset(options);
-}
-
-util.inherits(AccessControl, EventEmitter);
-
-/**
-Reset the access control applied by this object to client publish and subscribe
+> Reset the access control applied by this object to client publish and subscribe
 requests on attached [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) objects.
 
-@param {Object} options Specifies to which topics clients should be allowed and disallowed to publish and subscribe messages. It supports the following properties:
+**Parameters:**
 
+- `{Object} options` Specifies to which topics clients should be allowed and disallowed to publish and subscribe messages. It supports the following properties: 
   - `{Object} [publish]` Allowed and disallowed topics for publish requests, with the following properties:
     - `{Array} [allow]` Clients can publish messages to these topics.
     - `{Array} [disallow]` Clients cannot publish messages to these topics.
@@ -297,60 +256,51 @@ publish or subscribe request matches a disallowed topic specifier, it's blocked
 even if it also matches an allowed topic specifier.
 
 Access control is only applied where topics are specified.
-*/
-AccessControl.prototype.reset = function (options)
-{
-    var ths = this, topic;
 
-    options = options || {};
+<sub>Go: [TOC](#tableofcontents) | [AccessControl.prototype](#toc_accesscontrolprototype)</sub>
 
-    this._matchers = {
-        publish: {},
-        subscribe: {}
-    };
+## AccessControl.prototype.attach(server)
 
-    function make(type, access)
-    {
-        if (options[type] && options[type][access])
-        {
-            ths._matchers[type][access] = new QlobberDedup();
-            for (topic of options[type][access])
-            {
-                ths._matchers[type][access].add(topic, true);
-            }
-        }
-    }
+> Start applying access control to a [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object.
 
-    function setup(type)
-    {
-        make(type, 'allow');
-        make(type, 'disallow');
-    }
+**Parameters:**
 
-    setup('publish');
-    setup('subscribe');
-};
+- `{MQlobberServer} server` Object to which to apply access control. The object's [`subscribe_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventssubscribe_requestedtopic-cb) and [`publish_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventspublish_requestedtopic-stream-options-cb) events will be handled in order to allow or disallow client requests according to the topic specifiers passed to [`AccessControl`](#accesscontroloptions) or[`reset`](#accesscontrolprototyperesetoptions).
 
-/**
-Start applying access control to a [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object.
+<sub>Go: [TOC](#tableofcontents) | [AccessControl.prototype](#toc_accesscontrolprototype)</sub>
 
-@param {MQlobberServer} server Object to which to apply access control. The object's [`subscribe_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventssubscribe_requestedtopic-cb) and [`publish_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventspublish_requestedtopic-stream-options-cb) events will be handled in order to allow or disallow client requests according to the topic specifiers passed to [`AccessControl`](#accesscontroloptions) or[`reset`](#accesscontrolprototyperesetoptions).
-*/
-AccessControl.prototype.attach = function (server)
-{
-    server.on('subscribe_requested', this._subscribe_requested);
-    server.on('publish_requested', this._publish_requested);
-};
+## AccessControl.prototype.detach(server)
 
-/**
-Stop applying access control to a [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object.
+> Stop applying access control to a [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object.
 
-@param {MQlobberServer} server Object to which to stop applying access control. 
-*/
-AccessControl.prototype.detach = function (server)
-{
-    server.removeListener('subscribe_requested', this._subscribe_requested);
-    server.removeListener('publish_requested', this._publish_requested);
-};
+**Parameters:**
 
-exports.AccessControl = AccessControl;
+- `{MQlobberServer} server` Object to which to stop applying access control.
+
+<sub>Go: [TOC](#tableofcontents) | [AccessControl.prototype](#toc_accesscontrolprototype)</sub>
+
+<a name="accesscontrolevents"></a>
+
+## AccessControl.events.subscribe_blocked(topic)
+
+> `subscribe_blocked` event
+
+Emitted by an `AccessControl` object after it blocks a subscribe request from a
+client.
+
+**Parameters:**
+
+- `{String} topic` Topic that was blocked.
+
+<sub>Go: [TOC](#tableofcontents) | [AccessControl.events](#toc_accesscontrolevents)</sub>
+
+## AccessControl.events.publish_blocked()
+
+> `publish_blocked` event
+
+Emitted by an `AccessControl` object after it blocks a publish request from a
+client.
+
+<sub>Go: [TOC](#tableofcontents) | [AccessControl.events](#toc_accesscontrolevents)</sub>
+
+_&mdash;generated by [apidox](https://github.com/codeactual/apidox)&mdash;_

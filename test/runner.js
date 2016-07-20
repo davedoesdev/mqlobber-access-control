@@ -211,6 +211,7 @@ describe(type, function ()
                     expect(warnings).to.eql(['blocked subscribe to topic: foo.bar',
                                              'blocked publish to topic: foo.bar',
                                              'unexpected data']);
+                    /*jshint validthis: true */
                     this.removeListener('warning', warning);
                     cb();
                 }
