@@ -64,7 +64,11 @@ describe('example', function ()
                 assert.equal(stdout.length, 0);
                 if (n === 0)
                 {
-                    assert.equal(stderr.toString(), '[Error: blocked subscribe to topic: test]\n[Error: blocked publish to topic: foo.bar.reserved]\n');
+                    var s = stderr.toString(),
+                        pos1 = s.indexOf('blocked subscribe to topic: test'),
+                        pos2 = s.indexOf('blocked publish to topic: foo.bar.reserved');
+                    assert(pos1 > 0);
+                    assert(pos2 > pos1);
                 }
                 else
                 {
