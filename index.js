@@ -246,7 +246,7 @@ function AccessControl(options)
         }
 
         done(new Error('blocked subscribe to topic: ' + topic));
-        ths.emit('subscribe_blocked', topic);
+        ths.emit('subscribe_blocked', topic, this);
     };
 
     this._publish_requested = function (topic, duplex, options, done)
@@ -257,8 +257,23 @@ function AccessControl(options)
         }
 
         done(new Error('blocked publish to topic: ' + topic));
-        ths.emit('publish_blocked', topic);
+        ths.emit('publish_blocked', topic, this);
     };
+
+    this._message = function (stream, info, multiplex, done)
+    {
+        if (allow('subscribe', info.topic))
+        {
+            return stream.pipe(multiplex());
+        }
+
+        done(new Error('blocked message with topic: ' + info.topic));
+        ths.emit('message_blocked', info.topic, this);
+    };
+
+    // the problem with this is we end up opening files needlessly
+    // can't we add a filter function to the fsq?
+    // the filter would need to check all attached 
 
     this.reset(options);
 }
@@ -278,6 +293,7 @@ requests on attached [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#
   - `{Object} [subscribe]` Allowed and disallowed topics for subscribe requests, with the following properties:
     - `{Array} [allow]` Clients can subscribe to messages published to these topics.
     - `{Array} [disallow]` Clients cannot subscribe to messages published to these topics.
+    - `{Boolean} [block]` Whether to prevent messages with topics matched by `disallow` being delivered to clients. This is useful if `allow` is a superset of `disallow` but you don't want messages matching `disallow` sent to clients. Defaults to `false`.
  
 Topics are the same as [`mqlobber` topics](https://github.com/davedoesdev/mqlobber#mqlobberclientprototypesubscribetopic-handler-cb) and [`qlobber-fsq` topics](
 https://github.com/davedoesdev/qlobber-fsq#qlobberfsqprototypesubscribetopic-handler-cb). They're split into words using `.` as the separator. You can use `*`
@@ -329,6 +345,8 @@ AccessControl.prototype.reset = function (options)
 
     setup('publish');
     setup('subscribe');
+
+    this._block = options.subscribe && options.subscribe.block;
 };
 
 /**
@@ -340,6 +358,11 @@ AccessControl.prototype.attach = function (server)
 {
     server.on('subscribe_requested', this._subscribe_requested);
     server.on('publish_requested', this._publish_requested);
+
+    if (this._block)
+    {
+        server.on('message', this._message);
+    }
 };
 
 /**
@@ -351,6 +374,7 @@ AccessControl.prototype.detach = function (server)
 {
     server.removeListener('subscribe_requested', this._subscribe_requested);
     server.removeListener('publish_requested', this._publish_requested);
+    server.removeListener('message', this._message);
 };
 
 exports.AccessControl = AccessControl;

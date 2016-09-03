@@ -419,13 +419,15 @@ describe(type, function ()
             warnings.push(err.message);
         });
 
-        ac.on('subscribe_blocked', function (topic)
+        ac.on('subscribe_blocked', function (topic, server)
         {
+            expect(server).to.equal(mq.server);
             blocked.push('subscribe ' + topic);
         });
 
-        ac.on('publish_blocked', function (topic)
+        ac.on('publish_blocked', function (topic, server)
         {
+            expect(server).to.equal(mq.server);
             blocked.push('publish ' + topic);
         });
 
@@ -462,6 +464,71 @@ describe(type, function ()
                 }).end('bar');
             });
         });
+    });
+
+    with_mqs(1, 'should by default send messages matching subscribe.allow to clients even if they match subscribe.disallow', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+        {
+            subscribe: { allow: ['foo.*'],
+                         disallow: ['foo.bar'] }
+        });
+
+        var mq = mqs[0];
+
+        ac.attach(mq.server);
+
+        mq.client.subscribe('foo.*', function (s, info)
+        {
+            expect(info.single).to.equal(false);
+            expect(info.topic).to.equal('foo.bar');
+
+            read_all(s, function (v)
+            {
+                expect(v.toString()).to.equal('bar');
+                cb()
+            });
+        });
+
+        mq.client.publish('foo.bar').end('bar');
+    });
+
+    with_mqs(1, 'should support preventing messages matching subscribe.disallow being sent to clients even if they match subscribe.allow', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+        {
+            subscribe: { allow: ['foo.*'],
+                         disallow: ['foo.bar'],
+                         block: true }
+        });
+
+        var mq = mqs[0];
+
+        ac.attach(mq.server);
+
+        mq.server.fsq.on('warning', function (err)
+        {
+            expect(err.message).to.equal('blocked message with topic: foo.bar');
+        });
+
+        mq.server.on('warning', function (err)
+        {
+            expect(err.message).to.equal('blocked message with topic: foo.bar');
+        });
+
+        ac.on('message_blocked', function (topic, server)
+        {
+            expect(server).to.equal(mq.server);
+            expect(topic).to.equal('foo.bar');
+            setTimeout(cb, 1000);
+        });
+
+        mq.client.subscribe('foo.*', function ()
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.client.publish('foo.bar').end('bar');
     });
 });
 };
