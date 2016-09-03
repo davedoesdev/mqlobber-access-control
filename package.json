@@ -47,8 +47,8 @@
     "chai": "~3.5.0",
     "istanbul": "~0.4.3",
     "coveralls": "~2.11.9",
-    "mqlobber": "~1.1.0",
-    "qlobber-fsq": "3.2.3",
+    "mqlobber": "~1.1.1",
+    "qlobber-fsq": "3.2.4",
     "async": "~1.5.2",
     "rimraf": "~2.5.2"
   },
