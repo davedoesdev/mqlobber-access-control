@@ -530,5 +530,48 @@ describe(type, function ()
 
         mq.client.publish('foo.bar').end('bar');
     });
+
+    with_mqs(1, 'block should allow through messages not matching subscribe.disallow if they match subscribe.allow', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+        {
+            subscribe: { allow: ['foo.*'],
+                         disallow: ['foo.bar'],
+                         block: true }
+        });
+
+        var mq = mqs[0];
+
+        ac.attach(mq.server);
+
+        mq.server.fsq.on('warning', function (err)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.server.on('warning', function (err)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        ac.on('message_blocked', function (topic, server)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.client.subscribe('foo.*', function (s, info)
+        {
+            expect(info.single).to.equal(false);
+            expect(info.topic).to.equal('foo.test');
+
+            read_all(s, function (v)
+            {
+                expect(v.toString()).to.equal('bar');
+                cb();
+            });
+        });
+
+        mq.client.publish('foo.test').end('bar');
+    });
 });
 };
