@@ -486,7 +486,7 @@ describe(type, function ()
             read_all(s, function (v)
             {
                 expect(v.toString()).to.equal('bar');
-                cb()
+                cb();
             });
         });
 
