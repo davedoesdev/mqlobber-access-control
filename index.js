@@ -203,7 +203,55 @@ Coveralls page is [here](https://coveralls.io/r/davedoesdev/mqlobber-access-cont
 
 var EventEmitter = require('events').EventEmitter,
     util = require('util'),
-    QlobberDedup = require('qlobber').QlobberDedup;
+    QlobberDedup = require('qlobber').QlobberDedup,
+    blocked_matcher = new QlobberDedup();
+
+function filter(info, handlers, cb)
+{
+    var blocked_handlers = blocked_matcher.match(info.topic),
+        new_handlers;
+
+    if (blocked_handlers.size === 0)
+    {
+        /*jshint validthis: true */
+        return this.mqlobber_access_control_prev_filter(info, handlers, cb);
+    }
+
+    function allow(handler)
+    {
+        if (blocked_handlers.has(handler))
+        {
+            var server = handler.mqlobber_server,
+                access_control = server.mqlobber_access_control;
+
+            access_control.emit('message_blocked', info.topic, server);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    if (Array.isArray(handlers))
+    {
+        new_handlers = handlers.filter(allow);
+    }
+    else
+    {
+        new_handlers = new Set();
+
+        for (var handler of handlers)
+        {
+            if (allow(handler))
+            {
+                new_handlers.add(handler);
+            }
+        }
+    }
+
+    /*jshint validthis: true */
+    this.mqlobber_access_control_prev_filter(info, new_handlers, cb);
+}
 
 /**
 Create a new `AccessControl` object for applying access control on publish
@@ -260,20 +308,8 @@ function AccessControl(options)
         ths.emit('publish_blocked', topic, this);
     };
 
-    this._message = function (stream, info, multiplex, done)
-    {
-        if (allow('subscribe', info.topic))
-        {
-            return stream.pipe(multiplex());
-        }
-
-        done(new Error('blocked message with topic: ' + info.topic));
-        ths.emit('message_blocked', info.topic, this);
-    };
-
-    // the problem with this is we end up opening files needlessly
-    // can't we add a filter function to the fsq?
-    // the filter would need to check all attached 
+    this._blocked_topics = [];
+    this._blocked_handlers = new Set();
 
     this.reset(options);
 }
@@ -346,23 +382,66 @@ AccessControl.prototype.reset = function (options)
     setup('publish');
     setup('subscribe');
 
-    this._block = options.subscribe && options.subscribe.block;
+    for (var topic of this._blocked_topics)
+    {
+        for (var handler of this._blocked_handlers)
+        {
+            blocked_matcher.remove(topic, handler);
+        }
+    }
+
+    if (options.subscribe &&
+        options.subscribe.disallow &&
+        options.subscribe.block)
+    {
+        this._blocked_topics = options.subscribe.disallow;
+    }
+    else
+    {
+        this._blocked_topics = [];
+    }
+
+    for (var topic of this._blocked_topics)
+    {
+        for (var handler of this._blocked_handlers)
+        {
+            blocked_matcher.add(topic, handler);
+        }
+    }
 };
 
 /**
 Start applying access control to a [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object.
 
+Only one `AccessControl` object can be attached to a `MQlobberServer` object at
+a time. Trying to attach more than one will throw an exception.
+
 @param {MQlobberServer} server Object to which to apply access control. The object's [`subscribe_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventssubscribe_requestedtopic-cb) and [`publish_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventspublish_requestedtopic-stream-options-cb) events will be handled in order to allow or disallow client requests according to the topic specifiers passed to [`AccessControl`](#accesscontroloptions) or[`reset`](#accesscontrolprototyperesetoptions).
 */
 AccessControl.prototype.attach = function (server)
 {
+    if (server.mqlobber_access_control)
+    {
+        throw new Error('server has access control');
+    }
+
     server.on('subscribe_requested', this._subscribe_requested);
     server.on('publish_requested', this._publish_requested);
 
-    if (this._block)
+    for (var topic of this._blocked_topics)
     {
-        server.on('message', this._message);
+        blocked_matcher.add(topic, server.handler);
     }
+
+    this._blocked_handlers.add(server.handler);
+
+    if (server.fsq.filter !== filter)
+    {
+        server.fsq.mqlobber_access_control_prev_filter = server.fsq.filter;
+        server.fsq.filter = filter;
+    }
+
+    server.mqlobber_access_control = this;
 };
 
 /**
@@ -374,7 +453,15 @@ AccessControl.prototype.detach = function (server)
 {
     server.removeListener('subscribe_requested', this._subscribe_requested);
     server.removeListener('publish_requested', this._publish_requested);
-    server.removeListener('message', this._message);
+
+    for (var topic of this._blocked_topics)
+    {
+        blocked_matcher.remove(topic, server.handler);
+    }
+
+    this._blocked_handlers.delete(server.handler);
+
+    delete server.mqlobber_access_control;
 };
 
 exports.AccessControl = AccessControl;

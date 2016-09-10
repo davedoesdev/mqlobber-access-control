@@ -43,8 +43,9 @@ function read_all(s, cb)
 
 module.exports = function (type, connect_and_accept)
 {
-describe(type, function ()
-{
+describe(type, function () {
+function dedup(dedup) {
+describe('dedup=' + dedup, function () {
     function with_mqs(n, description, f, mqit, options)
     {
         describe('mqs=' + n, function ()
@@ -64,7 +65,8 @@ describe(type, function ()
                 fsq = new QlobberFSQ(util._extend(
                 {
                     multi_ttl: timeout * 1000,
-                    single_ttl: timeout * 2 * 1000
+                    single_ttl: timeout * 2 * 1000,
+                    dedup: dedup
                 }, options));
 
                 fsq.on('start', function ()
@@ -506,16 +508,6 @@ describe(type, function ()
 
         ac.attach(mq.server);
 
-        mq.server.fsq.on('warning', function (err)
-        {
-            expect(err.message).to.equal('blocked message with topic: foo.bar');
-        });
-
-        mq.server.on('warning', function (err)
-        {
-            expect(err.message).to.equal('blocked message with topic: foo.bar');
-        });
-
         ac.on('message_blocked', function (topic, server)
         {
             expect(server).to.equal(mq.server);
@@ -544,16 +536,6 @@ describe(type, function ()
 
         ac.attach(mq.server);
 
-        mq.server.fsq.on('warning', function (err)
-        {
-            cb(new Error('should not be called'));
-        });
-
-        mq.server.on('warning', function (err)
-        {
-            cb(new Error('should not be called'));
-        });
-
         ac.on('message_blocked', function (topic, server)
         {
             cb(new Error('should not be called'));
@@ -573,5 +555,200 @@ describe(type, function ()
 
         mq.client.publish('foo.test').end('bar');
     });
+
+    with_mqs(1, 'should unblock when detach', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+        {
+            subscribe: { allow: ['foo.*'],
+                         disallow: ['foo.bar'],
+                         block: true }
+        });
+
+        var mq = mqs[0];
+
+        ac.attach(mq.server);
+        ac.detach(mq.server);
+
+        ac.on('message_blocked', function (topic, server)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.client.subscribe('foo.*', function (s, info)
+        {
+            expect(info.single).to.equal(false);
+            expect(info.topic).to.equal('foo.bar');
+
+            read_all(s, function (v)
+            {
+                expect(v.toString()).to.equal('bar');
+                cb();
+            });
+        });
+
+        mq.client.publish('foo.bar').end('bar');
+    });
+
+    with_mqs(1, 'should still block when reset', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+        {
+            subscribe: { allow: ['foo.*'],
+                         disallow: ['foo.bar'],
+                         block: true }
+        });
+
+        var mq = mqs[0];
+
+        ac.attach(mq.server);
+
+        ac.reset(
+        {
+            subscribe: { allow: ['foo.*'],
+                         disallow: ['foo.bar'],
+                         block: true }
+        });
+
+        ac.on('message_blocked', function (topic, server)
+        {
+            expect(server).to.equal(mq.server);
+            expect(topic).to.equal('foo.bar');
+            setTimeout(cb, 1000);
+        });
+
+        mq.client.subscribe('foo.*', function ()
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.client.publish('foo.bar').end('bar');
+    });
+
+    with_mqs(1, 'should guard against attaching access control to a server more than once', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+        {
+            subscribe: { allow: ['foo.*'],
+                         disallow: ['foo.bar'],
+                         block: true }
+        });
+
+        var mq = mqs[0];
+
+        ac.attach(mq.server);
+
+        expect(function ()
+        {
+            ac.attach(mq.server);
+        }).to.throw(Error);
+
+        ac.on('message_blocked', function (topic, server)
+        {
+            expect(server).to.equal(mq.server);
+            expect(topic).to.equal('foo.bar');
+            setTimeout(cb, 1000);
+        });
+
+        mq.client.subscribe('foo.*', function ()
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.client.publish('foo.bar').end('bar');
+    });
+
+    with_mqs(1, 'should be able to reattach', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+        {
+            subscribe: { allow: ['foo.*'],
+                         disallow: ['foo.bar'],
+                         block: true }
+        });
+
+        var mq = mqs[0];
+
+        ac.attach(mq.server);
+        ac.detach(mq.server);
+        ac.attach(mq.server);
+
+        ac.on('message_blocked', function (topic, server)
+        {
+            expect(server).to.equal(mq.server);
+            expect(topic).to.equal('foo.bar');
+            setTimeout(cb, 1000);
+        });
+
+        mq.client.subscribe('foo.*', function ()
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.client.publish('foo.bar').end('bar');
+    });
+
+    with_mqs(2, 'should support attaching to different servers with different block policy', function (mqs, cb)
+    {
+        var ac1 = new AccessControl(
+        {
+            subscribe: { allow: ['foo.*'],
+                         disallow: ['foo.bar'],
+                         block: true }
+        });
+
+        var ac2 = new AccessControl(
+        {
+            subscribe: { allow: ['foo.*'],
+                         disallow: ['foo.test'],
+                         block: true }
+        });
+
+        ac1.attach(mqs[0].server);
+        ac2.attach(mqs[1].server);
+
+        var blocked1 = false, blocked2 = false;
+
+        function check()
+        {
+            if (blocked1 && blocked2)
+            {
+                setTimeout(cb, 1000);
+            }
+        }
+
+        ac1.on('message_blocked', function (topic, server)
+        {
+            expect(server).to.equal(mqs[0].server);
+            expect(topic).to.equal('foo.bar');
+            blocked1 = true;
+            check();
+        });
+
+        ac2.on('message_blocked', function (topic, server)
+        {
+            expect(server).to.equal(mqs[1].server);
+            expect(topic).to.equal('foo.test');
+            blocked2 = true;
+            check();
+        });
+
+        mqs[0].client.subscribe('foo.*', function (s, info)
+        {
+            expect(info.topic).to.equal('foo.test');
+        });
+
+        mqs[1].client.subscribe('foo.*', function (s, info)
+        {
+            expect(info.topic).to.equal('foo.bar');
+        });
+
+        mqs[0].client.publish('foo.bar').end('bar');
+        mqs[0].client.publish('foo.test').end('bar');
+    });
+});
+}
+dedup(true);
+dedup(false);
 });
 };

@@ -237,6 +237,7 @@ requests on attached [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#
   - `{Object} [subscribe]` Allowed and disallowed topics for subscribe requests, with the following properties:
     - `{Array} [allow]` Clients can subscribe to messages published to these topics.
     - `{Array} [disallow]` Clients cannot subscribe to messages published to these topics.
+    - `{Boolean} [block]` Whether to prevent messages with topics matched by `disallow` being delivered to clients. This is useful if `allow` is a superset of `disallow` but you don't want messages matching `disallow` sent to clients. Defaults to `false`.
  
 Topics are the same as [`mqlobber` topics](https://github.com/davedoesdev/mqlobber#mqlobberclientprototypesubscribetopic-handler-cb) and [`qlobber-fsq` topics](
 https://github.com/davedoesdev/qlobber-fsq#qlobberfsqprototypesubscribetopic-handler-cb). They're split into words using `.` as the separator. You can use `*`
@@ -262,6 +263,9 @@ Access control is only applied where topics are specified.
 ## AccessControl.prototype.attach(server)
 
 > Start applying access control to a [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object.
+
+You should only attach one `AccessControl` object to each `MQlobberServer`
+object. Attaching more than will result in unpredictable behaviour.
 
 **Parameters:**
 
