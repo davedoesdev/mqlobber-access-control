@@ -15,7 +15,7 @@ var path = require('path'),
     chai = require('chai'),
     expect = chai.expect;
 
-var timeout = 5;
+var timeout = 30;
 var num_queues = 10;
 
 function read_all(s, cb)
