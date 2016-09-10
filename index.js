@@ -352,7 +352,7 @@ Access control is only applied where topics are specified.
 */
 AccessControl.prototype.reset = function (options)
 {
-    var ths = this, topic;
+    var ths = this, topic, handler;
 
     options = options || {};
 
@@ -382,9 +382,9 @@ AccessControl.prototype.reset = function (options)
     setup('publish');
     setup('subscribe');
 
-    for (var topic of this._blocked_topics)
+    for (topic of this._blocked_topics)
     {
-        for (var handler of this._blocked_handlers)
+        for (handler of this._blocked_handlers)
         {
             blocked_matcher.remove(topic, handler);
         }
@@ -401,9 +401,9 @@ AccessControl.prototype.reset = function (options)
         this._blocked_topics = [];
     }
 
-    for (var topic of this._blocked_topics)
+    for (topic of this._blocked_topics)
     {
-        for (var handler of this._blocked_handlers)
+        for (handler of this._blocked_handlers)
         {
             blocked_matcher.add(topic, handler);
         }
