@@ -495,13 +495,12 @@ describe('dedup=' + dedup, function () {
         mq.client.publish('foo.bar').end('bar');
     });
 
-    with_mqs(1, 'should support preventing messages matching subscribe.disallow being sent to clients even if they match subscribe.allow', function (mqs, cb)
+    with_mqs(1, 'should support preventing messages matching block being sent to clients even if they match subscribe.allow', function (mqs, cb)
     {
         var ac = new AccessControl(
         {
-            subscribe: { allow: ['foo.*'],
-                         disallow: ['foo.bar'],
-                         block: true }
+            subscribe: { allow: ['foo.*'] },
+            block: ['foo.bar']
         });
 
         var mq = mqs[0];
@@ -523,13 +522,12 @@ describe('dedup=' + dedup, function () {
         mq.client.publish('foo.bar').end('bar');
     });
 
-    with_mqs(1, 'block should allow through messages not matching subscribe.disallow if they match subscribe.allow', function (mqs, cb)
+    with_mqs(1, 'block should allow through non-matching messages if they match subscribe.allow', function (mqs, cb)
     {
         var ac = new AccessControl(
         {
-            subscribe: { allow: ['foo.*'],
-                         disallow: ['foo.bar'],
-                         block: true }
+            subscribe: { allow: ['foo.*'] },
+            block: ['foo.bar']
         });
 
         var mq = mqs[0];
@@ -560,9 +558,8 @@ describe('dedup=' + dedup, function () {
     {
         var ac = new AccessControl(
         {
-            subscribe: { allow: ['foo.*'],
-                         disallow: ['foo.bar'],
-                         block: true }
+            subscribe: { allow: ['foo.*'] },
+            block: ['foo.bar']
         });
 
         var mq = mqs[0];
@@ -594,9 +591,8 @@ describe('dedup=' + dedup, function () {
     {
         var ac = new AccessControl(
         {
-            subscribe: { allow: ['foo.*'],
-                         disallow: ['foo.bar'],
-                         block: true }
+            subscribe: { allow: ['foo.*'] },
+            block: ['foo.bar'],
         });
 
         var mq = mqs[0];
@@ -605,9 +601,8 @@ describe('dedup=' + dedup, function () {
 
         ac.reset(
         {
-            subscribe: { allow: ['foo.*'],
-                         disallow: ['foo.bar'],
-                         block: true }
+            subscribe: { allow: ['foo.*'] },
+            block: ['foo.bar']
         });
 
         ac.on('message_blocked', function (topic, server)
@@ -629,9 +624,8 @@ describe('dedup=' + dedup, function () {
     {
         var ac = new AccessControl(
         {
-            subscribe: { allow: ['foo.*'],
-                         disallow: ['foo.bar'],
-                         block: true }
+            subscribe: { allow: ['foo.*'] },
+            block: ['foo.bar']
         });
 
         var mq = mqs[0];
@@ -662,9 +656,8 @@ describe('dedup=' + dedup, function () {
     {
         var ac = new AccessControl(
         {
-            subscribe: { allow: ['foo.*'],
-                         disallow: ['foo.bar'],
-                         block: true }
+            subscribe: { allow: ['foo.*'] },
+            block: ['foo.bar']
         });
 
         var mq = mqs[0];
@@ -692,16 +685,14 @@ describe('dedup=' + dedup, function () {
     {
         var ac1 = new AccessControl(
         {
-            subscribe: { allow: ['foo.*'],
-                         disallow: ['foo.bar'],
-                         block: true }
+            subscribe: { allow: ['foo.*'] },
+            block: ['foo.bar']
         });
 
         var ac2 = new AccessControl(
         {
-            subscribe: { allow: ['foo.*'],
-                         disallow: ['foo.test'],
-                         block: true }
+            subscribe: { allow: ['foo.*'] },
+            block: ['foo.test']
         });
 
         ac1.attach(mqs[0].server);

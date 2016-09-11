@@ -1,7 +1,8 @@
 # mqlobber-access-control&nbsp;&nbsp;&nbsp;[![Build Status](https://travis-ci.org/davedoesdev/mqlobber-access-control.png)](https://travis-ci.org/davedoesdev/mqlobber-access-control) [![Coverage Status](https://coveralls.io/repos/davedoesdev/mqlobber-access-control/badge.png?branch=master&service=github)](https://coveralls.io/r/davedoesdev/mqlobber-access-control?branch=master) [![NPM version](https://badge.fury.io/js/mqlobber-access-control.png)](http://badge.fury.io/js/mqlobber-access-control)
 
 Access control for [mqlobber](https://github.com/davedoesdev/mqlobber) message
-queues. Specify to which topics clients can (and can't) subscribe and publish.
+queues. Specify to which topics clients can (and can't) subscribe, publish and
+receive.
 
 The API is described [here](#api).
 
@@ -210,7 +211,8 @@ Coveralls page is [here](https://coveralls.io/r/davedoesdev/mqlobber-access-cont
 ## AccessControl(options)
 
 > Create a new `AccessControl` object for applying access control on publish
-and subscribe requests to [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) objects.
+and subscribe requests to [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) objects and messages delivered to
+clients.
 
 Calls [`reset`](#accesscontrolprototyperesetoptions) after creating the object.
 
@@ -225,11 +227,12 @@ Calls [`reset`](#accesscontrolprototyperesetoptions) after creating the object.
 ## AccessControl.prototype.reset(options)
 
 > Reset the access control applied by this object to client publish and subscribe
-requests on attached [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) objects.
+requests on attached [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) objects and messages delivered to clients.
 
 **Parameters:**
 
-- `{Object} options` Specifies to which topics clients should be allowed and disallowed to publish and subscribe messages. It supports the following properties: 
+- `{Object} options` Specifies to which topics clients should be allowed and disallowed to publish, subscribe and receive messages. It supports the following properties:
+
   - `{Object} [publish]` Allowed and disallowed topics for publish requests, with the following properties:
     - `{Array} [allow]` Clients can publish messages to these topics.
     - `{Array} [disallow]` Clients cannot publish messages to these topics.
@@ -237,8 +240,10 @@ requests on attached [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#
   - `{Object} [subscribe]` Allowed and disallowed topics for subscribe requests, with the following properties:
     - `{Array} [allow]` Clients can subscribe to messages published to these topics.
     - `{Array} [disallow]` Clients cannot subscribe to messages published to these topics.
-    - `{Boolean} [block]` Whether to prevent messages with topics matched by `disallow` being delivered to clients. This is useful if `allow` is a superset of `disallow` but you don't want messages matching `disallow` sent to clients. Defaults to `false`.
- 
+
+  - `{Array} [block]` Clients cannot receive messages published to these topics.
+ This is useful if `subscribe.allow` is a superset of `subscribe.disallow` but you don't want messages matching (a subset of) `subscribe.disallow` sent to clients.
+
 Topics are the same as [`mqlobber` topics](https://github.com/davedoesdev/mqlobber#mqlobberclientprototypesubscribetopic-handler-cb) and [`qlobber-fsq` topics](
 https://github.com/davedoesdev/qlobber-fsq#qlobberfsqprototypesubscribetopic-handler-cb). They're split into words using `.` as the separator. You can use `*`
 to match exactly one word in a topic or `#` to match zero or more words.
@@ -264,12 +269,12 @@ Access control is only applied where topics are specified.
 
 > Start applying access control to a [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object.
 
-You should only attach one `AccessControl` object to each `MQlobberServer`
-object. Attaching more than will result in unpredictable behaviour.
+Only one `AccessControl` object can be attached to a `MQlobberServer` object at
+a time. Trying to attach more than one will throw an exception.
 
 **Parameters:**
 
-- `{MQlobberServer} server` Object to which to apply access control. The object's [`subscribe_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventssubscribe_requestedtopic-cb) and [`publish_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventspublish_requestedtopic-stream-options-cb) events will be handled in order to allow or disallow client requests according to the topic specifiers passed to [`AccessControl`](#accesscontroloptions) or[`reset`](#accesscontrolprototyperesetoptions).
+- `{MQlobberServer} server` Object to which to apply access control. The object's [`subscribe_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventssubscribe_requestedtopic-cb) and [`publish_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventspublish_requestedtopic-stream-options-cb) events will be handled in order to allow or disallow client requests according to the topic specifiers passed to [`AccessControl`](#accesscontroloptions) or[`reset`](#accesscontrolprototyperesetoptions). For blocking messages delivered to clients, a [`QlobberFSQ`](https://github.com/davedoesdev/qlobber-fsq#qlobberfsqoptions) `filter` function is installed on the server's file system queue.
 
 <sub>Go: [TOC](#tableofcontents) | [AccessControl.prototype](#toc_accesscontrolprototype)</sub>
 
