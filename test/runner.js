@@ -756,7 +756,7 @@ describe('dedup=' + dedup, function () {
         ac.on('publish_requested', function (server, topic, stream, options, cb)
         {
             pub_event = true;
-            stream.pipe(server.fsq.publish(topic, stream, cb));
+            stream.pipe(server.fsq.publish(topic, options, cb));
         });
 
         mq.client.subscribe('foo.*', function (s, info)
