@@ -292,7 +292,11 @@ function AccessControl(options)
     {
         if (allow(ths._matchers.subscribe, topic))
         {
-            return this.subscribe(topic, done);
+            if (!ths.emit('subscribe_requested', this, topic, done))
+            {
+                this.subscribe(topic, done);
+            }
+            return;
         }
 
         done(new Error('blocked subscribe to topic: ' + topic));
@@ -303,7 +307,11 @@ function AccessControl(options)
     {
         if (allow(ths._matchers.publish, topic))
         {
-            return duplex.pipe(this.fsq.publish(topic, options, done));
+            if (!ths.emit('publish_requested', this, topic, duplex, options, done))
+            {
+                duplex.pipe(this.fsq.publish(topic, options, done));
+            }
+            return;
         }
 
         done(new Error('blocked publish to topic: ' + topic));

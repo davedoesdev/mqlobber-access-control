@@ -737,6 +737,44 @@ describe('dedup=' + dedup, function () {
         mqs[0].client.publish('foo.bar').end('bar');
         mqs[0].client.publish('foo.test').end('bar');
     });
+
+    with_mqs(1, 'should re-emit publish_requested and subscribe_requested events', function (mqs, cb)
+    {
+        var ac = new AccessControl(),
+            mq = mqs[0],
+            pub_event = false,
+            sub_event = false;
+
+        ac.attach(mq.server);
+
+        ac.on('subscribe_requested', function (server, topic, cb)
+        {
+            sub_event = true;
+            server.subscribe(topic, cb);
+        });
+
+        ac.on('publish_requested', function (server, topic, stream, options, cb)
+        {
+            pub_event = true;
+            stream.pipe(server.fsq.publish(topic, stream, cb));
+        });
+
+        mq.client.subscribe('foo.*', function (s, info)
+        {
+            expect(info.topic).to.equal('foo.bar');
+
+            expect(pub_event).to.equal(true);
+            expect(sub_event).to.equal(true);
+
+            read_all(s, function (v)
+            {
+                expect(v.toString()).to.equal('bar');
+                cb();
+            });
+        });
+
+        mq.client.publish('foo.bar').end('bar');
+    });
 });
 }
 dedup(true);
