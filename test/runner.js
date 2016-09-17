@@ -749,12 +749,14 @@ describe('dedup=' + dedup, function () {
 
         ac.on('subscribe_requested', function (server, topic, cb)
         {
+            expect(topic).to.equal('foo.*');
             sub_event = true;
             server.subscribe(topic, cb);
         });
 
         ac.on('publish_requested', function (server, topic, stream, options, cb)
         {
+            expect(topic).to.equal('foo.bar');
             pub_event = true;
             stream.pipe(server.fsq.publish(topic, options, cb));
         });
@@ -795,16 +797,18 @@ describe('dedup=' + dedup, function () {
 
         ac.attach(mq.server);
 
-        mq.server.on('subscribe_requested', function (server, topic, cb)
+        mq.server.on('subscribe_requested', function (topic, cb)
         {
+            expect(topic).to.equal('foo.*');
             mq_sub_event = true;
-            server.subscribe(topic, cb);
+            this.subscribe(topic, cb);
         });
 
-        mq.server.on('publish_requested', function (server, topic, stream, options, cb)
+        mq.server.on('publish_requested', function (topic, stream, options, cb)
         {
+            expect(topic).to.equal('foo.bar');
             mq_pub_event = true;
-            stream.pipe(server.fsq.publish(topic, options, cb));
+            stream.pipe(this.fsq.publish(topic, options, cb));
         });
 
         mq.client.subscribe('foo.*', function (s, info)
@@ -837,24 +841,28 @@ describe('dedup=' + dedup, function () {
 
         ac.on('subscribe_requested', function (server, topic, cb)
         {
+            expect(topic).to.equal('foo.*');
             sub_event = true;
             server.emit('subscribe_requested', topic, cb);
         });
 
         ac.on('publish_requested', function (server, topic, stream, options, cb)
         {
+            expect(topic).to.equal('foo.bar');
             pub_event = true;
             server.emit('publish_requested', topic, stream, options, cb);
         });
 
         mq.server.on('subscribe_requested', function (topic, cb)
         {
+            expect(topic).to.equal('foo.*');
             mq_sub_event = true;
             this.subscribe(topic, cb);
         });
 
         mq.server.on('publish_requested', function (topic, stream, options, cb)
         {
+            expect(topic).to.equal('foo.bar');
             mq_pub_event = true;
             stream.pipe(this.fsq.publish(topic, options, cb));
         });

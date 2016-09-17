@@ -293,7 +293,7 @@ function AccessControl(options)
         if (allow(ths._matchers.subscribe, topic))
         {
             if (!ths.emit('subscribe_requested', this, topic, done) &&
-                !this.emit('subscribe_requested', this, topic, done))
+                !this.emit('subscribe_requested', topic, done))
             {
                 this.subscribe(topic, done);
             }
@@ -309,7 +309,7 @@ function AccessControl(options)
         if (allow(ths._matchers.publish, topic))
         {
             if (!ths.emit('publish_requested', this, topic, duplex, options, done) &&
-                !this.emit('publish_requested', this, topic, duplex, options, done))
+                !this.emit('publish_requested', topic, duplex, options, done))
             {
                 duplex.pipe(this.fsq.publish(topic, options, done));
             }
