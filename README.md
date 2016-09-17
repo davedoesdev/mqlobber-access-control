@@ -205,10 +205,9 @@ Coveralls page is [here](https://coveralls.io/r/davedoesdev/mqlobber-access-cont
 - <a name="toc_accesscontrolprototyperesetoptions"></a><a name="toc_accesscontrolprototype"></a>[AccessControl.prototype.reset](#accesscontrolprototyperesetoptions)
 - <a name="toc_accesscontrolprototypeattachserver"></a>[AccessControl.prototype.attach](#accesscontrolprototypeattachserver)
 - <a name="toc_accesscontrolprototypedetachserver"></a>[AccessControl.prototype.detach](#accesscontrolprototypedetachserver)
-- <a name="toc_accesscontroleventssubscribe_blockedtopic"></a><a name="toc_accesscontrolevents"></a>[AccessControl.events.subscribe_blocked](#accesscontroleventssubscribe_blockedtopic)
-- <a name="toc_accesscontroleventspublish_blocked"></a>[AccessControl.events.publish_blocked](#accesscontroleventspublish_blocked)
-- <a name="toc_accesscontroleventssubscribe_requestedserver-topic-cb"></a>[AccessControl.events.subscribe_requested](#accesscontroleventssubscribe_requestedserver-topic-cb)
-- <a name="toc_accesscontroleventspublish_requestedserver-topic-stream-options-cb"></a>[AccessControl.events.publish_requested](#accesscontroleventspublish_requestedserver-topic-stream-options-cb)
+- <a name="toc_accesscontroleventssubscribe_blockedtopic-server"></a><a name="toc_accesscontrolevents"></a>[AccessControl.events.subscribe_blocked](#accesscontroleventssubscribe_blockedtopic-server)
+- <a name="toc_accesscontroleventspublish_blockedtopic-server"></a>[AccessControl.events.publish_blocked](#accesscontroleventspublish_blockedtopic-server)
+- <a name="toc_accesscontroleventsmessage_blockedtopic-server"></a>[AccessControl.events.message_blocked](#accesscontroleventsmessage_blockedtopic-server)
 
 ## AccessControl(options)
 
@@ -276,7 +275,7 @@ a time. Trying to attach more than one will throw an exception.
 
 **Parameters:**
 
-- `{MQlobberServer} server` Object to which to apply access control. The object's [`subscribe_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventssubscribe_requestedtopic-cb) and [`publish_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventspublish_requestedtopic-stream-options-cb) events will be handled in order to allow or disallow client requests according to the topic specifiers passed to [`AccessControl`](#accesscontroloptions) or[`reset`](#accesscontrolprototyperesetoptions). For blocking messages delivered to clients, a [`QlobberFSQ`](https://github.com/davedoesdev/qlobber-fsq#qlobberfsqoptions) `filter` function is installed on the server's file system queue.
+- `{MQlobberServer} server` Object to which to apply access control.
 
 <sub>Go: [TOC](#tableofcontents) | [AccessControl.prototype](#toc_accesscontrolprototype)</sub>
 
@@ -292,7 +291,7 @@ a time. Trying to attach more than one will throw an exception.
 
 <a name="accesscontrolevents"></a>
 
-## AccessControl.events.subscribe_blocked(topic)
+## AccessControl.events.subscribe_blocked(topic, server)
 
 > `subscribe_blocked` event
 
@@ -301,82 +300,36 @@ client.
 
 **Parameters:**
 
-- `{String} topic` Topic that was blocked.
+- `{String} topic` The topic that was blocked. 
+- `{MQlobberServer} server` The [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object which received the subscription request.
 
 <sub>Go: [TOC](#tableofcontents) | [AccessControl.events](#toc_accesscontrolevents)</sub>
 
-## AccessControl.events.publish_blocked()
+## AccessControl.events.publish_blocked(topic, server)
 
 > `publish_blocked` event
 
 Emitted by an `AccessControl` object after it blocks a publish request from a
 client.
 
-<sub>Go: [TOC](#tableofcontents) | [AccessControl.events](#toc_accesscontrolevents)</sub>
-
-## AccessControl.events.subscribe_requested(server, topic, cb)
-
-> `subscribe_requested` event
-
-Emitted by an `AccessControl` object when an attached `MQlobberServer` object
-receives a request from its peer `MQlobberClient` object to subscribe to
-messages published to a topic.
-
-If there are no listeners on this event, the default action is to call
-[`server.subscribe(topic, cb)`](https://github.com/davedoesdev/mqlobber#mqlobberserverprototypesubscribetopic-cb).
-If you add a listener on this event, the default action will _not_ be called.
-This gives you the opportunity to filter subscription requests in the
-application.
-
-Please see the documentation for [`MQlobberServer.events.subscribe_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventssubscribe_requestedtopic-cb). There is one extra parameter here, `server`, which is the `MQlobberServer` object.
-
 **Parameters:**
 
-- `{MQlobberServer} server` The [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object which received the subscription request. 
-- `{String} topic` The topic to which the client is asking to subscribe. 
-- `{Function} cb` Function to call after processing the subscription request. This function _must_ be called even if you don't call
-[`server.subscribe`](https://github.com/davedoesdev/mqlobber#mqlobberserverprototypesubscribetopic-cb) yourself.
-It takes a single argument:
-
-  - `{Object} err` If `null` then a success status is returned to the client
-      (whether you called [`server.subscribe`](https://github.com/davedoesdev/mqlobber#mqlobberserverprototypesubscribetopic-cb) or not).
-          Otherwise, the client gets a failed status and a [`warning`](https://github.com/davedoesdev/mqlobber#mqlobberservereventswarningerr-obj) event is emitted with `err`.
+- `{String} topic` The topic that was blocked. 
+- `{MQlobberServer} server` The [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object which received the publication request.
 
 <sub>Go: [TOC](#tableofcontents) | [AccessControl.events](#toc_accesscontrolevents)</sub>
 
-## AccessControl.events.publish_requested(server, topic, stream, options, cb)
+## AccessControl.events.message_blocked(topic, server)
 
-> `publish_requested` event
+> `message_blocked` event
 
-Emitted by an `AccessControl` object when an attached `MQlobberServer` object
-receives a requests from its peer `MQlobberClient` object to publish a message
-to a topic.
-
-If there are no listeners on this event, the default action is to call
-`stream.pipe(server.fsq.publish(topic, options, cb))`
-
-Please see the documentation for [`MQlobberServer.events.publish_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventspublish_requestedtopic-stream-options-cb). There is one extra parameter here, `server`, which is the `MQlobberServer` object.
+Emitted by an `AccessControl` object after it blocks a message being sent to a
+client.
 
 **Parameters:**
 
-- `{MQlobberServer} server` The [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object which received the publication request. 
-- `{String} topic` The topic to which the message should be published. 
-- `{Readable} stream` The message data as a [`Readable`](https://nodejs.org/d ist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable). 
-
-- `{Object} options` Optional settings for this publication: 
-  - `{Boolean} single` If `true` then the message should be published to
-    _at most_ one client (across all servers). Otherwise, it should be published
-    to all interested clients.
-    
-  - `{Integer} ttl` Time-to-live (in seconds) for this message.
-  
-- `{Function} cb` Function to call after processing the publication request. This function _must_ be called even if you don't call
-[`server.fsq.publish`](https://github.com/davedoesdev/qlobber-fsq#qlobberfsqprototypepublishtopic-payload-options-cb) yourself. It takes a single
-argument:
-
-  - `{Object} err` If `null` then a success status is returned to the client
-    (whether you called [`server.fsq.publish`](https://github.com/davedoesdev/qlobber-fsq#qlobberfsqprototypepublishtopic-payload-options-cb) or not).
-    Otherwise, the client gets a failed status and a [`warning`](https://github.com/davedoesdev/mqlobber#mqlobberservereventswarningerr-obj) event is emitted with `err`.
+- `{String} topic` The topic that was blocked. 
+- `{MQlobberServer} server` The [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object which was handling the message.
 
 <sub>Go: [TOC](#tableofcontents) | [AccessControl.events](#toc_accesscontrolevents)</sub>
 

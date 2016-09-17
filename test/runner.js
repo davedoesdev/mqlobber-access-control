@@ -743,7 +743,9 @@ describe('dedup=' + dedup, function () {
         var ac = new AccessControl(),
             mq = mqs[0],
             pub_event = false,
-            sub_event = false;
+            sub_event = false,
+            mq_pub_event = false,
+            mq_sub_event = false;
 
         ac.attach(mq.server);
 
@@ -759,12 +761,24 @@ describe('dedup=' + dedup, function () {
             stream.pipe(server.fsq.publish(topic, options, cb));
         });
 
+        mq.server.on('subscribe_requested', function ()
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.server.on('publish_requested', function ()
+        {
+            cb(new Error('should not be called'));
+        });
+
         mq.client.subscribe('foo.*', function (s, info)
         {
             expect(info.topic).to.equal('foo.bar');
 
             expect(pub_event).to.equal(true);
             expect(sub_event).to.equal(true);
+            expect(mq_pub_event).to.equal(false);
+            expect(mq_sub_event).to.equal(false);
 
             read_all(s, function (v)
             {
@@ -775,6 +789,48 @@ describe('dedup=' + dedup, function () {
 
         mq.client.publish('foo.bar').end('bar');
     });
+
+
+    with_mqs(1, 'should emit publish_requested and subscribe_requested events on MQlobberServer', function (mqs, cb)
+    {
+        var ac = new AccessControl(),
+            mq = mqs[0],
+            mq_pub_event = false,
+            mq_sub_event = false;
+
+        ac.attach(mq.server);
+
+        mq.server.on('subscribe_requested', function (server, topic, cb)
+        {
+            mq_sub_event = true;
+            server.subscribe(topic, cb);
+        });
+
+        mq.server.on('publish_requested', function (server, topic, stream, options, cb)
+        {
+            mq_pub_event = true;
+            stream.pipe(server.fsq.publish(topic, options, cb));
+        });
+
+        mq.client.subscribe('foo.*', function (s, info)
+        {
+            expect(info.topic).to.equal('foo.bar');
+
+            expect(mq_pub_event).to.equal(true);
+            expect(mq_sub_event).to.equal(true);
+
+            read_all(s, function (v)
+            {
+                expect(v.toString()).to.equal('bar');
+                cb();
+            });
+        });
+
+        mq.client.publish('foo.bar').end('bar');
+    });
+
+
+
 });
 }
 dedup(true);

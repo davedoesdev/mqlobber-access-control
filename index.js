@@ -288,11 +288,12 @@ function AccessControl(options)
 
     var ths = this;
 
-    this._subscribe_requested = function (topic, done)
+    this._pre_subscribe_requested = function (topic, done)
     {
         if (allow(ths._matchers.subscribe, topic))
         {
-            if (!ths.emit('subscribe_requested', this, topic, done))
+            if (!ths.emit('subscribe_requested', this, topic, done) &&
+                !this.emit('subscribe_requested', this, topic, done))
             {
                 this.subscribe(topic, done);
             }
@@ -303,11 +304,12 @@ function AccessControl(options)
         ths.emit('subscribe_blocked', topic, this);
     };
 
-    this._publish_requested = function (topic, duplex, options, done)
+    this._pre_publish_requested = function (topic, duplex, options, done)
     {
         if (allow(ths._matchers.publish, topic))
         {
-            if (!ths.emit('publish_requested', this, topic, duplex, options, done))
+            if (!ths.emit('publish_requested', this, topic, duplex, options, done) &&
+                !this.emit('publish_requested', this, topic, duplex, options, done))
             {
                 duplex.pipe(this.fsq.publish(topic, options, done));
             }
@@ -420,7 +422,7 @@ Start applying access control to a [`MQlobberServer`](https://github.com/davedoe
 Only one `AccessControl` object can be attached to a `MQlobberServer` object at
 a time. Trying to attach more than one will throw an exception.
 
-@param {MQlobberServer} server Object to which to apply access control. The object's [`subscribe_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventssubscribe_requestedtopic-cb) and [`publish_requested`](https://github.com/davedoesdev/mqlobber#mqlobberservereventspublish_requestedtopic-stream-options-cb) events will be handled in order to allow or disallow client requests according to the topic specifiers passed to [`AccessControl`](#accesscontroloptions) or[`reset`](#accesscontrolprototyperesetoptions). For blocking messages delivered to clients, a [`QlobberFSQ`](https://github.com/davedoesdev/qlobber-fsq#qlobberfsqoptions) `filter` function is installed on the server's file system queue.
+@param {MQlobberServer} server Object to which to apply access control.
 */
 AccessControl.prototype.attach = function (server)
 {
@@ -429,8 +431,8 @@ AccessControl.prototype.attach = function (server)
         throw new Error('server has access control');
     }
 
-    server.on('subscribe_requested', this._subscribe_requested);
-    server.on('publish_requested', this._publish_requested);
+    server.on('pre_subscribe_requested', this._pre_subscribe_requested);
+    server.on('pre_publish_requested', this._pre_publish_requested);
 
     for (var topic of this._blocked_topics)
     {
@@ -455,8 +457,10 @@ Stop applying access control to a [`MQlobberServer`](https://github.com/davedoes
 */
 AccessControl.prototype.detach = function (server)
 {
-    server.removeListener('subscribe_requested', this._subscribe_requested);
-    server.removeListener('publish_requested', this._publish_requested);
+    server.removeListener('pre_subscribe_requested',
+                          this._pre_subscribe_requested);
+    server.removeListener('pre_publish_requested',
+                          this._pre_publish_requested);
 
     for (var topic of this._blocked_topics)
     {
