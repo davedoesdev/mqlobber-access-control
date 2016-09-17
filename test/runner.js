@@ -743,9 +743,7 @@ describe('dedup=' + dedup, function () {
         var ac = new AccessControl(),
             mq = mqs[0],
             pub_event = false,
-            sub_event = false,
-            mq_pub_event = false,
-            mq_sub_event = false;
+            sub_event = false;
 
         ac.attach(mq.server);
 
@@ -777,8 +775,6 @@ describe('dedup=' + dedup, function () {
 
             expect(pub_event).to.equal(true);
             expect(sub_event).to.equal(true);
-            expect(mq_pub_event).to.equal(false);
-            expect(mq_sub_event).to.equal(false);
 
             read_all(s, function (v)
             {
@@ -789,7 +785,6 @@ describe('dedup=' + dedup, function () {
 
         mq.client.publish('foo.bar').end('bar');
     });
-
 
     with_mqs(1, 'should emit publish_requested and subscribe_requested events on MQlobberServer', function (mqs, cb)
     {
@@ -829,8 +824,104 @@ describe('dedup=' + dedup, function () {
         mq.client.publish('foo.bar').end('bar');
     });
 
+    with_mqs(1, 'should support code emitting publish_requested and subscribe_requested events on MQlobberServer', function (mqs, cb)
+    {
+        var ac = new AccessControl(),
+            mq = mqs[0],
+            pub_event = false,
+            sub_event = false,
+            mq_pub_event = false,
+            mq_sub_event = false;
 
+        ac.attach(mq.server);
 
+        ac.on('subscribe_requested', function (server, topic, cb)
+        {
+            sub_event = true;
+            server.emit('subscribe_requested', topic, cb);
+        });
+
+        ac.on('publish_requested', function (server, topic, stream, options, cb)
+        {
+            pub_event = true;
+            server.emit('publish_requested', topic, stream, options, cb);
+        });
+
+        mq.server.on('subscribe_requested', function (topic, cb)
+        {
+            mq_sub_event = true;
+            this.subscribe(topic, cb);
+        });
+
+        mq.server.on('publish_requested', function (topic, stream, options, cb)
+        {
+            mq_pub_event = true;
+            stream.pipe(this.fsq.publish(topic, options, cb));
+        });
+
+        mq.client.subscribe('foo.*', function (s, info)
+        {
+            expect(info.topic).to.equal('foo.bar');
+
+            expect(pub_event).to.equal(true);
+            expect(sub_event).to.equal(true);
+            expect(mq_pub_event).to.equal(true);
+            expect(mq_sub_event).to.equal(true);
+
+            read_all(s, function (v)
+            {
+                expect(v.toString()).to.equal('bar');
+                cb();
+            });
+        });
+
+        mq.client.publish('foo.bar').end('bar');
+    });
+
+    with_mqs(1, 'should not emit publish_requested and subscribe_requested events on MQlobberServer when requests are blocked', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+            {
+                publish: { allow: ['some topic'] },
+                subscribe: { allow: ['some topic'] }
+            }),
+            mq = mqs[0];
+
+        ac.attach(mq.server);
+
+        ac.on('subscribe_requested', function (server, topic, cb)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        ac.on('publish_requested', function (server, topic, stream, options, cb)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.server.on('subscribe_requested', function (topic, cb)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.server.on('publish_requested', function (topic, stream, options, cb)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.client.subscribe('foo.*', function (s, info)
+        {
+            cb(new Error('should not be called'));
+        }, function (err)
+        {
+            expect(err.message).to.equal('server error');
+            mq.client.publish('foo.bar', function (err)
+            {
+                expect(err.message).to.equal('server error');
+                setTimeout(cb, 2000);
+            }).end('bar');
+        });
+    });
 });
 }
 dedup(true);
