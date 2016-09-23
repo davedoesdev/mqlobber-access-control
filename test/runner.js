@@ -162,6 +162,8 @@ describe('dedup=' + dedup, function () {
                 expect(info.single).to.equal(false);
                 expect(info.topic).to.equal('foo.bar');
 
+                expect(this).to.equal(mq.client);
+
                 var now = Date.now(), expires = info.expires * 1000;
 
                 expect(expires).to.be.above(now);
