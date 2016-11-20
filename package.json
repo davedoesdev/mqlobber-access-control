@@ -1,7 +1,7 @@
 {
   "name": "mqlobber-access-control",
   "description": "Access control for mqlobber message queues",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "homepage": "https://github.com/davedoesdev/mqlobber-access-control",
   "author": {
     "name": "David Halls",
@@ -47,8 +47,8 @@
     "chai": "~3.5.0",
     "istanbul": "~0.4.3",
     "coveralls": "~2.11.9",
-    "mqlobber": "~2.3.0",
-    "qlobber-fsq": "4.0.1",
+    "mqlobber": "~2.4.0",
+    "qlobber-fsq": "5.0.0",
     "async": "~1.5.2",
     "rimraf": "~2.5.2"
   },
