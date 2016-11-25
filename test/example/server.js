@@ -15,18 +15,21 @@ fsq.on('start', function ()
             publish: { allow: [ 'foo.bar.#' ],
                        disallow: [ 'foo.bar.reserved' ] },
             subscribe: { allow: [ 'foo.#' ] }
-        }).attach(new MQlobberServer(fsq, c));
+        }).attach(new MQlobberServer(fsq, c).on('error', console.error));
     });
 //--------------------
     server.on('connection', function (c)
     {
-        c.on('end', function ()
+        function disconnect()
         {
             if (process.send)
             {
                 process.send('disconnect');
             }
-        });
+        }
+
+        c.on('end', disconnect);
+        c.on('close', disconnect);
 
         if (process.send)
         {
