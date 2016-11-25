@@ -49,6 +49,8 @@ describe('example', function ()
 {
     it('subscribers should connect, be denied or receive message then disconnect', function (done)
     {
+        this.timeout(10000);
+
         var count = 0,
             servers = [],
             base_port = 8700,
