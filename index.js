@@ -204,6 +204,7 @@ Coveralls page is [here](https://coveralls.io/r/davedoesdev/mqlobber-access-cont
 
 var EventEmitter = require('events').EventEmitter,
     util = require('util'),
+    Transform = require('stream').Transform,
     QlobberDedup = require('qlobber').QlobberDedup,
     blocked_matcher = new QlobberDedup();
 
@@ -290,34 +291,93 @@ function AccessControl(options)
 
     this._pre_subscribe_requested = function (topic, done)
     {
-        if (allow(ths._matchers.subscribe, topic))
+        if (ths._max_topic_length && (topic.length > ths._max_topic_length))
         {
-            if (!ths.emit('subscribe_requested', this, topic, done) &&
-                !this.emit('subscribe_requested', topic, done))
-            {
-                this.subscribe(topic, done);
-            }
-            return;
+            done(new Error('subscribe topic longer than ' +
+                           ths._max_topic_length));
+            return ths.emit('subscribe_blocked', topic, this);
         }
 
-        done(new Error('blocked subscribe to topic: ' + topic));
-        ths.emit('subscribe_blocked', topic, this);
+        if (!allow(ths._matchers.subscribe, topic))
+        {
+            done(new Error('blocked subscribe to topic: ' + topic));
+            return ths.emit('subscribe_blocked', topic, this);
+        }
+
+        if (ths._max_subscriptions &&
+            (this.subs.size >= ths._max_subscriptions) &&
+            !this.subs.has(topic))
+        {
+            done(new Error('subscription limit ' + ths._max_subscriptions +
+                           ' already reached: ' + topic));
+            return ths.emit('subscribe_blocked', topic, this);
+        }
+
+        if (!ths.emit('subscribe_requested', this, topic, done) &&
+            !this.emit('subscribe_requested', topic, done))
+        {
+            this.subscribe(topic, done);
+        }
+    };
+
+    this._pre_unsubscribe_requested = function (topic, done)
+    {
+        if (ths._max_topic_length && (topic.length > ths._max_topic_length))
+        {
+            done(new Error('unsubscribe topic longer than ' +
+                           ths._max_topic_length));
+            return ths.emit('unsubscribe_blocked', topic, this);
+        }
+        
+        return this.unsubscribe(topic, done);
     };
 
     this._pre_publish_requested = function (topic, duplex, options, done)
     {
-        if (allow(ths._matchers.publish, topic))
+        if (ths._max_topic_length && (topic.length > ths._max_topic_length))
         {
-            if (!ths.emit('publish_requested', this, topic, duplex, options, done) &&
-                !this.emit('publish_requested', topic, duplex, options, done))
-            {
-                duplex.pipe(this.fsq.publish(topic, options, done));
-            }
-            return;
+            done(new Error('publish topic longer than ' +
+                           ths._max_topic_length));
+            return ths.emit('publish_blocked', topic, this);
         }
 
-        done(new Error('blocked publish to topic: ' + topic));
-        ths.emit('publish_blocked', topic, this);
+        if (!allow(ths._matchers.publish, topic))
+        {
+            done(new Error('blocked publish to topic: ' + topic));
+            return ths.emit('publish_blocked', topic, this);
+        }
+
+        if (ths._max_publish_data_length)
+        {
+            var t = new Transform(),
+                count = 0;
+
+            t.on('error', this.relay_error);
+            
+            t._transform = function (chunk, enc, cont)
+            {
+                count += chunk.length;
+
+                if (count > ths._max_publish_data_length)
+                {
+                    return cont(new Error('message data exceeded limit ' +
+                                          ths._max_publish_data_length + ': ' +
+                                          topic));
+                }
+
+                this.push(chunk);
+                cont();
+            };
+
+            duplex.pipe(t);
+            duplex = t;
+        }
+
+        if (!ths.emit('publish_requested', this, topic, duplex, options, done) &&
+            !this.emit('publish_requested', topic, duplex, options, done))
+        {
+            duplex.pipe(this.fsq.publish(topic, options, done));
+        }
     };
 
     this._blocked_topics = [];
@@ -338,13 +398,16 @@ properties:
   - `{Object} [publish]` Allowed and disallowed topics for publish requests, with the following properties:
     - `{Array} [allow]` Clients can publish messages to these topics.
     - `{Array} [disallow]` Clients cannot publish messages to these topics.
+    - `{Integer} [max_data_length]` Maximum number of bytes allowed in a published message.
 
   - `{Object} [subscribe]` Allowed and disallowed topics for subscribe requests, with the following properties:
     - `{Array} [allow]` Clients can subscribe to messages published to these topics.
     - `{Array} [disallow]` Clients cannot subscribe to messages published to these topics.
+    - `{Integer} [max_subscriptions]` Maximum number of topics to which `MQlobberServer` objects can be subscribed at any one time.
 
-  - `{Array} [block]` Clients cannot receive messages published to these topics.
- This is useful if `subscribe.allow` is a superset of `subscribe.disallow` but you don't want messages matching (a subset of) `subscribe.disallow` sent to clients.
+  - `{Array} [block]` Clients cannot receive messages published to these topics. This is useful if `subscribe.allow` is a superset of `subscribe.disallow` but you don't want messages matching (a subset of) `subscribe.disallow` sent to clients.
+
+  - `{Integer} [max_topic_length]` Maximum topic length for publish, subscribe and unsubscribe requests.
 
 Topics are the same as [`mqlobber` topics](https://github.com/davedoesdev/mqlobber#mqlobberclientprototypesubscribetopic-handler-cb) and [`qlobber-fsq` topics](
 https://github.com/davedoesdev/qlobber-fsq#qlobberfsqprototypesubscribetopic-handler-cb). They're split into words using `.` as the separator. You can use `*`
@@ -414,6 +477,12 @@ AccessControl.prototype.reset = function (options)
             blocked_matcher.add(topic, handler);
         }
     }
+
+    this._max_topic_length = options.max_topic_length;
+    this._max_subscriptions = options.subscribe ?
+            options.subscribe.max_subscriptions : 0;
+    this._max_publish_data_length = options.publish ?
+            options.publish.max_data_length : 0;
 };
 
 /**
@@ -432,6 +501,7 @@ AccessControl.prototype.attach = function (server)
     }
 
     server.on('pre_subscribe_requested', this._pre_subscribe_requested);
+    server.on('pre_unsubscribe_requested', this._pre_unsubscribe_requested);
     server.on('pre_publish_requested', this._pre_publish_requested);
 
     for (var topic of this._blocked_topics)

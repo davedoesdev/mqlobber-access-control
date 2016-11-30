@@ -932,6 +932,115 @@ describe('dedup=' + dedup, function () {
             }).end('bar');
         });
     });
+
+    with_mqs(1, 'should be able to limit topic length', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+            {
+                max_topic_length: 2
+            }),
+            mq = mqs[0],
+            warnings = [];
+
+        ac.attach(mq.server);
+
+        mq.server.on('warning', function (err)
+        {
+            warnings.push(err);
+        });
+
+        function f()
+        {
+            cb(new Error('should not be called'));
+        }
+
+        mq.client.subscribe('foo', f, function (err)
+        {
+            expect(err.message).to.equal('server error');
+            expect(warnings[0].message).to.equal('subscribe topic longer than 2');
+            mq.client.publish('foo', function (err)
+            {
+                expect(err.message).to.equal('server error');
+                expect(warnings[1].message).to.equal('publish topic longer than 2');
+                setTimeout(function ()
+                {
+                    expect(warnings[2].message).to.equal('unexpected data');
+                    mq.client.subs.set('foo', new Set([f]));
+                    mq.client.unsubscribe('foo', f, function (err)
+                    {
+                        expect(err.message).to.equal('server error');
+                        expect(warnings[3].message).to.equal('unsubscribe topic longer than 2'); 
+                        cb();
+                    });
+                }, 500);
+            }).write('bar');
+        });
+    });
+
+    with_mqs(1, 'should be able to limit number of subscriptions', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+            {
+                subscribe: {
+                    max_subscriptions: 1
+                }
+            }),
+            mq = mqs[0],
+            warnings = [];
+
+        ac.attach(mq.server);
+
+        mq.server.on('warning', function (err)
+        {
+            warnings.push(err);
+        });
+
+        mq.client.subscribe('foo', function ()
+        {
+            cb(new Error('should not be called'));
+        }, function (err)
+        {
+            if (err) { return cb(err); }
+            mq.client.subscribe('bar', function ()
+            {
+                cb(new Error('should not be called'));
+            }, function (err)
+            {
+                expect(err.message).to.equal('server error');
+                expect(warnings[0].message).to.equal('subscription limit 1 already reached: bar');
+                cb();
+            });
+        });
+    });
+
+    with_mqs(1, 'should be able to limit message length', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+            {
+                publish: {
+                    max_data_length: 100
+                }
+            }),
+            mq = mqs[0],
+            warnings = [];
+
+        ac.attach(mq.server);
+
+        mq.server.on('warning', function (err)
+        {
+            warnings.push(err);
+        });
+
+        var s = mq.client.publish('foo', function (err)
+        {
+            expect(err.message).to.equal('server error');
+            expect(warnings[0].message).to.equal('message data exceeded limit 100: foo');
+            cb();
+        });
+        
+        s.write(new Buffer(50));
+        s.end(new Buffer(51));
+    });
 });
 }
 dedup(true);
