@@ -729,11 +729,19 @@ describe('dedup=' + dedup, function () {
         mqs[0].client.subscribe('foo.*', function (s, info)
         {
             expect(info.topic).to.equal('foo.test');
+            read_all(s, function (v)
+            {
+                expect(v.toString()).to.equal('bar');
+            });
         });
 
         mqs[1].client.subscribe('foo.*', function (s, info)
         {
             expect(info.topic).to.equal('foo.bar');
+            read_all(s, function (v)
+            {
+                expect(v.toString()).to.equal('bar');
+            });
         });
 
         mqs[0].client.publish('foo.bar').end('bar');
