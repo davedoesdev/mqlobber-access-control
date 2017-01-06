@@ -329,7 +329,11 @@ function AccessControl(options)
             return ths.emit('unsubscribe_blocked', topic, this);
         }
         
-        return this.unsubscribe(topic, done);
+        if (!ths.emit('unsubscribe_requested', this, topic, done) &&
+            !this.emit('unsubscribe_requested', topic, done))
+        {
+            this.unsubscribe(topic, done);
+        }
     };
 
     this._pre_publish_requested = function (topic, duplex, options, done)

@@ -748,12 +748,13 @@ describe('dedup=' + dedup, function () {
         mqs[0].client.publish('foo.test').end('bar');
     });
 
-    with_mqs(1, 'should re-emit publish_requested and subscribe_requested events', function (mqs, cb)
+    with_mqs(1, 'should re-emit publish_requested, subscribe_requested and unsubscribe_requested events', function (mqs, cb)
     {
         var ac = new AccessControl(),
             mq = mqs[0],
             pub_event = false,
-            sub_event = false;
+            sub_event = false,
+            unsub_event = false;
 
         ac.attach(mq.server);
 
@@ -762,6 +763,13 @@ describe('dedup=' + dedup, function () {
             expect(topic).to.equal('foo.*');
             sub_event = true;
             server.subscribe(topic, cb);
+        });
+
+        ac.on('unsubscribe_requested', function (server, topic, cb)
+        {
+            expect(topic).to.equal('foo.*');
+            unsub_event = true;
+            server.unsubscribe(topic, cb);
         });
 
         ac.on('publish_requested', function (server, topic, stream, options, cb)
@@ -776,12 +784,17 @@ describe('dedup=' + dedup, function () {
             cb(new Error('should not be called'));
         });
 
+        mq.server.on('unsubscribe_requested', function ()
+        {
+            cb(new Error('should not be called'));
+        });
+
         mq.server.on('publish_requested', function ()
         {
             cb(new Error('should not be called'));
         });
 
-        mq.client.subscribe('foo.*', function (s, info)
+        mq.client.subscribe('foo.*', function sub(s, info)
         {
             expect(info.topic).to.equal('foo.bar');
 
@@ -791,19 +804,25 @@ describe('dedup=' + dedup, function () {
             read_all(s, function (v)
             {
                 expect(v.toString()).to.equal('bar');
-                cb();
+
+                mq.client.unsubscribe('foo.*', sub, function (err)
+                {
+                    expect(unsub_event).to.equal(true);
+                    cb();
+                });
             });
         });
 
         mq.client.publish('foo.bar').end('bar');
     });
 
-    with_mqs(1, 'should emit publish_requested and subscribe_requested events on MQlobberServer', function (mqs, cb)
+    with_mqs(1, 'should emit publish_requested, subscribe_requested and unsubscribe_requested events on MQlobberServer', function (mqs, cb)
     {
         var ac = new AccessControl(),
             mq = mqs[0],
             mq_pub_event = false,
-            mq_sub_event = false;
+            mq_sub_event = false,
+            mq_unsub_event = false;
 
         ac.attach(mq.server);
 
@@ -814,6 +833,13 @@ describe('dedup=' + dedup, function () {
             this.subscribe(topic, cb);
         });
 
+        mq.server.on('unsubscribe_requested', function (topic, cb)
+        {
+            expect(topic).to.equal('foo.*');
+            mq_unsub_event = true;
+            this.unsubscribe(topic, cb);
+        });
+
         mq.server.on('publish_requested', function (topic, stream, options, cb)
         {
             expect(topic).to.equal('foo.bar');
@@ -821,7 +847,7 @@ describe('dedup=' + dedup, function () {
             stream.pipe(this.fsq.publish(topic, options, cb));
         });
 
-        mq.client.subscribe('foo.*', function (s, info)
+        mq.client.subscribe('foo.*', function sub(s, info)
         {
             expect(info.topic).to.equal('foo.bar');
 
@@ -831,21 +857,28 @@ describe('dedup=' + dedup, function () {
             read_all(s, function (v)
             {
                 expect(v.toString()).to.equal('bar');
-                cb();
+
+                mq.client.unsubscribe('foo.*', sub, function (err)
+                {
+                    expect(mq_unsub_event).to.equal(true);
+                    cb();
+                });
             });
         });
 
         mq.client.publish('foo.bar').end('bar');
     });
 
-    with_mqs(1, 'should support code emitting publish_requested and subscribe_requested events on MQlobberServer', function (mqs, cb)
+    with_mqs(1, 'should support code emitting publish_requested, subscribe_requested and unsubscribe_requested events on MQlobberServer', function (mqs, cb)
     {
         var ac = new AccessControl(),
             mq = mqs[0],
             pub_event = false,
             sub_event = false,
+            unsub_event = false,
             mq_pub_event = false,
-            mq_sub_event = false;
+            mq_sub_event = false,
+            mq_unsub_event = false;
 
         ac.attach(mq.server);
 
@@ -854,6 +887,13 @@ describe('dedup=' + dedup, function () {
             expect(topic).to.equal('foo.*');
             sub_event = true;
             server.emit('subscribe_requested', topic, cb);
+        });
+
+        ac.on('unsubscribe_requested', function (server, topic, cb)
+        {
+            expect(topic).to.equal('foo.*');
+            unsub_event = true;
+            server.emit('unsubscribe_requested', topic, cb);
         });
 
         ac.on('publish_requested', function (server, topic, stream, options, cb)
@@ -870,6 +910,13 @@ describe('dedup=' + dedup, function () {
             this.subscribe(topic, cb);
         });
 
+        mq.server.on('unsubscribe_requested', function (topic, cb)
+        {
+            expect(topic).to.equal('foo.*');
+            mq_unsub_event = true;
+            this.unsubscribe(topic, cb);
+        });
+
         mq.server.on('publish_requested', function (topic, stream, options, cb)
         {
             expect(topic).to.equal('foo.bar');
@@ -877,7 +924,7 @@ describe('dedup=' + dedup, function () {
             stream.pipe(this.fsq.publish(topic, options, cb));
         });
 
-        mq.client.subscribe('foo.*', function (s, info)
+        mq.client.subscribe('foo.*', function sub(s, info)
         {
             expect(info.topic).to.equal('foo.bar');
 
@@ -889,7 +936,13 @@ describe('dedup=' + dedup, function () {
             read_all(s, function (v)
             {
                 expect(v.toString()).to.equal('bar');
-                cb();
+
+                mq.client.unsubscribe('foo.*', sub, function (err)
+                {
+                    expect(unsub_event).to.equal(true);
+                    expect(mq_unsub_event).to.equal(true);
+                    cb();
+                });
             });
         });
 
@@ -951,6 +1004,36 @@ describe('dedup=' + dedup, function () {
             warnings = [];
 
         ac.attach(mq.server);
+
+        ac.on('subscribe_requested', function (server, topic, cb)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        ac.on('unsubscribe_requested', function (server, topic, cb)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        ac.on('publish_requested', function (server, topic, stream, options, cb)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.server.on('subscribe_requested', function (topic, cb)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.server.on('unsubscribe_requested', function (topic, cb)
+        {
+            cb(new Error('should not be called'));
+        });
+
+        mq.server.on('publish_requested', function (topic, stream, options, cb)
+        {
+            cb(new Error('should not be called'));
+        });
 
         mq.server.on('warning', function (err)
         {
