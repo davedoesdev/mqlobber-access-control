@@ -357,6 +357,7 @@ function AccessControl(options)
                 count = 0;
 
             t.on('error', this.relay_error);
+            t.on('error', done);
             
             t._transform = function (chunk, enc, cont)
             {

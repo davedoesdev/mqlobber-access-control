@@ -1132,6 +1132,39 @@ describe('dedup=' + dedup, function () {
         s.write(new Buffer(50));
         s.end(new Buffer(51));
     });
+
+    with_mqs(1, 'client should get error if error occurs on limiting transform stream', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+            {
+                publish: {
+                    max_data_length: 100
+                }
+            }),
+            mq = mqs[0],
+            warnings = [];
+
+        ac.attach(mq.server);
+
+        mq.server.on('warning', function (err)
+        {
+            warnings.push(err);
+        });
+
+        mq.server.on('publish_requested', function (topic, stream, options, cb)
+        {
+            expect(topic).to.equal('foo');
+            stream.emit('error', new Error('dummy'));
+            cb();
+        });
+
+        mq.client.publish('foo', function (err)
+        {
+            expect(err.message).to.equal('server error');
+            expect(warnings[0].message).to.equal('dummy');
+            cb();
+        }).end();
+    });
 });
 }
 dedup(true);
