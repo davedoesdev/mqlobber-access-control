@@ -351,13 +351,39 @@ function AccessControl(options)
             return ths.emit('publish_blocked', topic, this);
         }
 
+        var server = this;
+
+        if (ths._max_publications &&
+            (server.mqlobber_access_control_publish_count >=
+             ths._max_publications))
+        {
+            done(new Error('publication limit ' + ths._max_publications +
+                           ' already reached: ' + topic));
+            return ths.emit('publish_blocked', topic, this);
+        }
+
+        server.mqlobber_access_control_publish_count += 1;
+
+        var decrement = function (err, data)
+        {
+            server.mqlobber_access_control_publish_count -= 1;
+            done(err, data);
+        }
+
+        function done2(err, data)
+        {
+            var dec = decrement;
+            decrement = done; // only decrement once
+            dec(err, data);
+        }
+
         if (ths._max_publish_data_length)
         {
             var t = new Transform(),
                 count = 0;
 
             t.on('error', this.relay_error);
-            t.on('error', done);
+            t.on('error', done2);
             
             t._transform = function (chunk, enc, cont)
             {
@@ -378,10 +404,10 @@ function AccessControl(options)
             duplex = t;
         }
 
-        if (!ths.emit('publish_requested', this, topic, duplex, options, done) &&
-            !this.emit('publish_requested', topic, duplex, options, done))
+        if (!ths.emit('publish_requested', this, topic, duplex, options, done2) &&
+            !this.emit('publish_requested', topic, duplex, options, done2))
         {
-            duplex.pipe(this.fsq.publish(topic, options, done));
+            duplex.pipe(this.fsq.publish(topic, options, done2));
         }
     };
 
@@ -404,11 +430,12 @@ properties:
     - `{Array} [allow]` Clients can publish messages to these topics.
     - `{Array} [disallow]` Clients cannot publish messages to these topics.
     - `{Integer} [max_data_length]` Maximum number of bytes allowed in a published message.
+    - `{Integer} [max_publications]` Maximum number of messages each client can publish at any one time.
 
   - `{Object} [subscribe]` Allowed and disallowed topics for subscribe requests, with the following properties:
     - `{Array} [allow]` Clients can subscribe to messages published to these topics.
     - `{Array} [disallow]` Clients cannot subscribe to messages published to these topics.
-    - `{Integer} [max_subscriptions]` Maximum number of topics to which `MQlobberServer` objects can be subscribed at any one time.
+    - `{Integer} [max_subscriptions]` Maximum number of topics to which each client can be subscribed at any one time.
 
   - `{Array} [block]` Clients cannot receive messages published to these topics. This is useful if `subscribe.allow` is a superset of `subscribe.disallow` but you don't want messages matching (a subset of) `subscribe.disallow` sent to clients.
 
@@ -488,6 +515,8 @@ AccessControl.prototype.reset = function (options)
             options.subscribe.max_subscriptions : 0;
     this._max_publish_data_length = options.publish ?
             options.publish.max_data_length : 0;
+    this._max_publications = options.publish ?
+            options.publish.max_publications : 0;
 };
 
 /**
@@ -521,6 +550,8 @@ AccessControl.prototype.attach = function (server)
         server.fsq.mqlobber_access_control_prev_filter = server.fsq.filter;
         server.fsq.filter = filter;
     }
+
+    server.mqlobber_access_control_publish_count = 0;
 
     server.mqlobber_access_control = this;
 };

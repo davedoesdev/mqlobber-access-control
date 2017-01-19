@@ -1104,6 +1104,68 @@ describe('dedup=' + dedup, function () {
         });
     });
 
+    with_mqs(1, 'should be able to limit number of publications', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+            {
+                publish: {
+                    max_publications: 1
+                }
+            }),
+            mq = mqs[0],
+            warnings = [];
+
+        ac.attach(mq.server);
+
+        mq.server.on('warning', function (err)
+        {
+            warnings.push(err);
+        });
+
+        mq.client.subscribe('foo2', function (s, info)
+        {
+            expect(info.topic).to.equal('foo2');
+            read_all(s, function (v)
+            {
+                expect(v.toString()).to.equal('foo2');
+                // check that bar message doesn't arrive
+                setTimeout(cb, 500);
+            });
+        }, function (err)
+        {
+            if (err) { return cb(err); }
+            mq.client.subscribe('foo', function (s, info)
+            {
+                expect(info.topic).to.equal('foo');
+                read_all(s, function (v)
+                {
+                    expect(v.toString()).to.equal('bar');
+                    mq.client.publish('foo2', function (err)
+                    {
+                        if (err) { cb(err); }
+                    }).end('foo2');
+                });
+            }, function (err)
+            {
+                if (err) { return cb(err); }
+
+                var s = mq.client.publish('foo', function (err)
+                {
+                    if (err) { cb(err); }
+                });
+                
+                s.write('bar');
+
+                mq.client.publish('bar', function (err)
+                {
+                    expect(err.message).to.equal('server error');
+                    expect(warnings[0].message).to.equal('publication limit 1 already reached: bar');
+                    s.end();
+                }).end('bar2');
+            });
+        });
+    });
+
     with_mqs(1, 'should be able to limit message length', function (mqs, cb)
     {
         var ac = new AccessControl(
