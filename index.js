@@ -316,7 +316,7 @@ function AccessControl(options)
         if (!ths.emit('subscribe_requested', this, topic, done) &&
             !this.emit('subscribe_requested', topic, done))
         {
-            this.subscribe(topic, done);
+            this.default_subscribe_requested_handler(topic, done);
         }
     };
 
@@ -332,7 +332,7 @@ function AccessControl(options)
         if (!ths.emit('unsubscribe_requested', this, topic, done) &&
             !this.emit('unsubscribe_requested', topic, done))
         {
-            this.unsubscribe(topic, done);
+            this.default_unsubscribe_requested_handler(topic, done);
         }
     };
 
@@ -407,7 +407,7 @@ function AccessControl(options)
         if (!ths.emit('publish_requested', this, topic, duplex, options, done2) &&
             !this.emit('publish_requested', topic, duplex, options, done2))
         {
-            duplex.pipe(this.fsq.publish(topic, options, done2));
+            this.default_publish_requested_handler(topic, duplex, options, done2);
         }
     };
 
