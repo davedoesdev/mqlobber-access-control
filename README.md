@@ -238,11 +238,12 @@ requests on attached [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#
     - `{Array} [allow]` Clients can publish messages to these topics.
     - `{Array} [disallow]` Clients cannot publish messages to these topics.
     - `{Integer} [max_data_length]` Maximum number of bytes allowed in a published message.
+    - `{Integer} [max_publications]` Maximum number of messages each client can publish at any one time.
 
   - `{Object} [subscribe]` Allowed and disallowed topics for subscribe requests, with the following properties:
     - `{Array} [allow]` Clients can subscribe to messages published to these topics.
     - `{Array} [disallow]` Clients cannot subscribe to messages published to these topics.
-    - `{Integer} [max_subscriptions]` Maximum number of topics to which `MQlobberServer` objects can be subscribed at any one time.
+    - `{Integer} [max_subscriptions]` Maximum number of topics to which each client can be subscribed at any one time.
 
   - `{Array} [block]` Clients cannot receive messages published to these topics. This is useful if `subscribe.allow` is a superset of `subscribe.disallow` but you don't want messages matching (a subset of) `subscribe.disallow` sent to clients.
 

@@ -215,8 +215,7 @@ function filter(info, handlers, cb)
 
     if (blocked_handlers.size === 0)
     {
-        /*jshint validthis: true */
-        return this.mqlobber_access_control_prev_filter(info, handlers, cb);
+        return cb(null, true, handlers);
     }
 
     function allow(handler)
@@ -251,8 +250,7 @@ function filter(info, handlers, cb)
         }
     }
 
-    /*jshint validthis: true */
-    this.mqlobber_access_control_prev_filter(info, new_handlers, cb);
+    cb(null, true, new_handlers);
 }
 
 function allow(matchers, topic)
@@ -545,10 +543,9 @@ AccessControl.prototype.attach = function (server)
 
     this._blocked_handlers.add(server.handler);
 
-    if (server.fsq.filter !== filter)
+    if (server.fsq.filters.indexOf(filter) < 0)
     {
-        server.fsq.mqlobber_access_control_prev_filter = server.fsq.filter;
-        server.fsq.filter = filter;
+        server.fsq.filters.push(filter);
     }
 
     server.mqlobber_access_control_publish_count = 0;
