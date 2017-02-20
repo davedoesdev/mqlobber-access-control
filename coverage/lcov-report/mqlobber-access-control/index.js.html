@@ -22,12 +22,12 @@
       <div class='fl pad1y space-right2'>
         <span class="strong">100% </span>
         <span class="quiet">Statements</span>
-        <span class='fraction'>128/128</span>
+        <span class='fraction'>121/121</span>
       </div>
       <div class='fl pad1y space-right2'>
         <span class="strong">100% </span>
         <span class="quiet">Branches</span>
-        <span class='fraction'>75/75</span>
+        <span class='fraction'>71/71</span>
       </div>
       <div class='fl pad1y space-right2'>
         <span class="strong">100% </span>
@@ -37,7 +37,7 @@
       <div class='fl pad1y space-right2'>
         <span class="strong">100% </span>
         <span class="quiet">Lines</span>
-        <span class='fraction'>128/128</span>
+        <span class='fraction'>121/121</span>
       </div>
     </div>
   </div>
@@ -602,26 +602,7 @@
 557
 558
 559
-560
-561
-562
-563
-564
-565
-566
-567
-568
-569
-570
-571
-572
-573
-574
-575
-576
-577
-578
-579</td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+560</td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -826,6 +807,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1×</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -834,14 +816,13 @@
 <span class="cline-any cline-yes">1×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">380×</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">380×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">91×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1×</span>
+<span class="cline-any cline-yes">289×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2457×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -855,25 +836,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2433×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">289×</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">186×</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">103×</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">103×</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">827×</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">815×</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">289×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1×</span>
@@ -1405,21 +1367,21 @@ Coveralls page is [here](https://coveralls.io/r/davedoesdev/mqlobber-access-cont
 &nbsp;
 var EventEmitter = require('events').EventEmitter,
     util = require('util'),
+    wu = require('wu'),
     Transform = require('stream').Transform,
     QlobberDedup = require('qlobber').QlobberDedup,
     blocked_matcher = new QlobberDedup();
 &nbsp;
 function filter(info, handlers, cb)
 {
-    var blocked_handlers = blocked_matcher.match(info.topic),
-        new_handlers;
+    var blocked_handlers = blocked_matcher.match(info.topic);
 &nbsp;
     if (blocked_handlers.size === 0)
     {
         return cb(null, true, handlers);
     }
 &nbsp;
-    function allow(handler)
+    cb(null, true, wu(handlers).filter(function (handler)
     {
         if (blocked_handlers.has(handler))
         {
@@ -1432,26 +1394,7 @@ function filter(info, handlers, cb)
         }
 &nbsp;
         return true;
-    }
-&nbsp;
-    if (Array.isArray(handlers))
-    {
-        new_handlers = handlers.filter(allow);
-    }
-    else
-    {
-        new_handlers = new Set();
-&nbsp;
-        for (var handler of handlers)
-        {
-            if (allow(handler))
-            {
-                new_handlers.add(handler);
-            }
-        }
-    }
-&nbsp;
-    cb(null, true, new_handlers);
+    }));
 }
 &nbsp;
 function allow(matchers, topic)
@@ -1783,7 +1726,7 @@ exports.AccessControl = AccessControl;
 </div><!-- /wrapper -->
 <div class='footer quiet pad2 space-top1 center small'>
   Code coverage
-  generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Sat Feb 11 2017 22:24:40 GMT+0000 (GMT)
+  generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Mon Feb 20 2017 08:09:40 GMT+0000 (GMT)
 </div>
 </div>
 <script src="../prettify.js"></script>

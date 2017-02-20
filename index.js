@@ -204,21 +204,21 @@ Coveralls page is [here](https://coveralls.io/r/davedoesdev/mqlobber-access-cont
 
 var EventEmitter = require('events').EventEmitter,
     util = require('util'),
+    wu = require('wu'),
     Transform = require('stream').Transform,
     QlobberDedup = require('qlobber').QlobberDedup,
     blocked_matcher = new QlobberDedup();
 
 function filter(info, handlers, cb)
 {
-    var blocked_handlers = blocked_matcher.match(info.topic),
-        new_handlers;
+    var blocked_handlers = blocked_matcher.match(info.topic);
 
     if (blocked_handlers.size === 0)
     {
         return cb(null, true, handlers);
     }
 
-    function allow(handler)
+    cb(null, true, wu(handlers).filter(function (handler)
     {
         if (blocked_handlers.has(handler))
         {
@@ -231,26 +231,7 @@ function filter(info, handlers, cb)
         }
 
         return true;
-    }
-
-    if (Array.isArray(handlers))
-    {
-        new_handlers = handlers.filter(allow);
-    }
-    else
-    {
-        new_handlers = new Set();
-
-        for (var handler of handlers)
-        {
-            if (allow(handler))
-            {
-                new_handlers.add(handler);
-            }
-        }
-    }
-
-    cb(null, true, new_handlers);
+    }));
 }
 
 function allow(matchers, topic)
