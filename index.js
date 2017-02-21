@@ -343,17 +343,18 @@ function AccessControl(options)
 
         server.mqlobber_access_control_publish_count += 1;
 
-        var decrement = function (err, data)
+        var decrement = function ()
         {
             server.mqlobber_access_control_publish_count -= 1;
-            done(err, data);
+            done.apply(this, arguments);
         };
 
-        function done2(err, data)
+        /*jshint validthis: true */
+        function done2()
         {
             var dec = decrement;
             decrement = done; // only decrement once
-            dec(err, data);
+            dec.apply(this, arguments);
         }
 
         if (ths._max_publish_data_length)
