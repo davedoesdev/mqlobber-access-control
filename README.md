@@ -197,7 +197,7 @@ grunt coverage
 
 Coveralls page is [here](https://coveralls.io/r/davedoesdev/mqlobber-access-control).
 
-#API
+# API
 
 <a name="tableofcontents"></a>
 
