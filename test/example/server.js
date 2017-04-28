@@ -20,10 +20,13 @@ fsq.on('start', function ()
 //--------------------
     server.on('connection', function (c)
     {
+        var disconnected = false;
+
         function disconnect()
         {
-            if (process.send)
+            if (process.send && !disconnected)
             {
+                disconnected = true;
                 process.send('disconnect');
             }
         }
