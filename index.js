@@ -349,9 +349,9 @@ function AccessControl(options)
             done.apply(this, arguments);
         };
 
-        /*jshint validthis: true */
         function done2()
         {
+            /*jshint validthis: true */
             var dec = decrement;
             decrement = done; // only decrement once
             dec.apply(this, arguments);

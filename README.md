@@ -202,7 +202,6 @@ Coveralls page is [here](https://coveralls.io/r/davedoesdev/mqlobber-access-cont
 <a name="tableofcontents"></a>
 
 - <a name="toc_accesscontroloptions"></a>[AccessControl](#accesscontroloptions)
-- <a name="toc_done2"></a>[done2](#done2)
 - <a name="toc_accesscontrolprototyperesetoptions"></a><a name="toc_accesscontrolprototype"></a>[AccessControl.prototype.reset](#accesscontrolprototyperesetoptions)
 - <a name="toc_accesscontrolprototypeattachserver"></a>[AccessControl.prototype.attach](#accesscontrolprototypeattachserver)
 - <a name="toc_accesscontrolprototypedetachserver"></a>[AccessControl.prototype.detach](#accesscontrolprototypedetachserver)
@@ -221,12 +220,6 @@ Calls [`reset`](#accesscontrolprototyperesetoptions) after creating the object.
 **Parameters:**
 
 - `{Object} options` See [`reset`](#accesscontrolprototyperesetoptions) for valid options.
-
-<sub>Go: [TOC](#tableofcontents)</sub>
-
-## done2()
-
-> shint validthis: true
 
 <sub>Go: [TOC](#tableofcontents)</sub>
 
