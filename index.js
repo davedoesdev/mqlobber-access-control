@@ -330,6 +330,18 @@ function AccessControl(options)
             return ths.emit('publish_blocked', topic, this);
         }
 
+        if (ths._disallow_publish_single && options.single)
+        {
+            done(new Error('blocked publish (single) to topic: ' + topic));
+            return ths.emit('publish_blocked', topic, this);
+        }
+
+        if (ths._disallow_publish_multi && !options.single)
+        {
+            done(new Error('blocked publish (multi) to topic: ' + topic));
+            return ths.emit('publish_blocked', topic, this);
+        }
+
         var server = this;
 
         if (ths._max_publications &&
@@ -411,6 +423,8 @@ properties:
     - `{Array} [disallow]` Clients cannot publish messages to these topics.
     - `{Integer} [max_data_length]` Maximum number of bytes allowed in a published message.
     - `{Integer} [max_publications]` Maximum number of messages each client can publish at any one time.
+    - `{Boolean} [disallow_single]` Whether to allow messages to be published to a single subscriber.
+    - `{Boolean} [disallow_multi]` Whether to allow messages to be published to multiple subscribers.
 
   - `{Object} [subscribe]` Allowed and disallowed topics for subscribe requests, with the following properties:
     - `{Array} [allow]` Clients can subscribe to messages published to these topics.
@@ -497,6 +511,10 @@ AccessControl.prototype.reset = function (options)
             options.publish.max_data_length : 0;
     this._max_publications = options.publish ?
             options.publish.max_publications : 0;
+    this._disallow_publish_single = options.publish ?
+            options.publish.disallow_single : false;
+    this._disallow_publish_multi = options.publish ?
+            options.publish.disallow_multi : false;
 };
 
 /**

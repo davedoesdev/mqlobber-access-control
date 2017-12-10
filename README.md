@@ -239,6 +239,8 @@ requests on attached [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#
     - `{Array} [disallow]` Clients cannot publish messages to these topics.
     - `{Integer} [max_data_length]` Maximum number of bytes allowed in a published message.
     - `{Integer} [max_publications]` Maximum number of messages each client can publish at any one time.
+    - `{Boolean} [disallow_single]` Whether to allow messages to be published to a single subscriber.
+    - `{Boolean} [disallow_multi]` Whether to allow messages to be published to multiple subscribers.
 
   - `{Object} [subscribe]` Allowed and disallowed topics for subscribe requests, with the following properties:
     - `{Array} [allow]` Clients can subscribe to messages published to these topics.

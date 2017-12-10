@@ -470,6 +470,110 @@ describe('dedup=' + dedup, function () {
         });
     });
 
+    with_mqs(1, 'should be able to prevent publishing single messages', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+        {
+            publish: { disallow_single: true }
+        });
+
+        var mq = mqs[0], warnings = [], blocked = [];
+
+        ac.attach(mq.server);
+
+        mq.server.on('warning', function (err)
+        {
+            warnings.push(err.message);
+        });
+
+        ac.on('publish_blocked', function (topic, server)
+        {
+            expect(server).to.equal(mq.server);
+            blocked.push('publish ' + topic);
+        });
+
+        mq.client.subscribe('foo.bar', function (s, info, done)
+        {
+            expect(info.topic).to.equal('foo.bar');
+            expect(info.single).to.equal(false);
+
+            expect(warnings).to.eql([
+                'blocked publish (single) to topic: foo.bar',
+                'unexpected data']);
+            expect(blocked).to.eql(['publish foo.bar']);
+
+            read_all(s, function (v)
+            {
+                expect(v.toString()).to.equal('bar');
+                done();
+                cb();
+            });
+        }, function (err)
+        {
+            if (err) { return cb(err); }
+            mq.client.publish('foo.bar', {single: true}, function (err)
+            {
+                expect(err.message).to.equal('server error');
+                mq.client.publish('foo.bar', function (err)
+                {
+                    if (err) { return cb(err); }
+                }).end('bar');
+            }).end('bar');
+        });
+    });
+
+    with_mqs(1, 'should be able to prevent publishing multi messages', function (mqs, cb)
+    {
+        var ac = new AccessControl(
+        {
+            publish: { disallow_multi: true }
+        });
+
+        var mq = mqs[0], warnings = [], blocked = [];
+
+        ac.attach(mq.server);
+
+        mq.server.on('warning', function (err)
+        {
+            warnings.push(err.message);
+        });
+
+        ac.on('publish_blocked', function (topic, server)
+        {
+            expect(server).to.equal(mq.server);
+            blocked.push('publish ' + topic);
+        });
+
+        mq.client.subscribe('foo.bar', function (s, info, done)
+        {
+            expect(info.topic).to.equal('foo.bar');
+            expect(info.single).to.equal(true);
+
+            expect(warnings).to.eql([
+                'blocked publish (multi) to topic: foo.bar',
+                'unexpected data']);
+            expect(blocked).to.eql(['publish foo.bar']);
+
+            read_all(s, function (v)
+            {
+                expect(v.toString()).to.equal('bar');
+                done();
+                cb();
+            });
+        }, function (err)
+        {
+            if (err) { return cb(err); }
+            mq.client.publish('foo.bar', function (err)
+            {
+                expect(err.message).to.equal('server error');
+                mq.client.publish('foo.bar', {single: true}, function (err)
+                {
+                    if (err) { return cb(err); }
+                }).end('bar');
+            }).end('bar');
+        });
+    });
+
     with_mqs(1, 'should by default send messages matching subscribe.allow to clients even if they match subscribe.disallow', function (mqs, cb)
     {
         var ac = new AccessControl(
