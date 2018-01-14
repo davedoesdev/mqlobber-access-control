@@ -233,7 +233,6 @@ requests on attached [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#
 **Parameters:**
 
 - `{Object} options` Specifies to which topics clients should be allowed and disallowed to publish, subscribe and receive messages. It supports the following properties:
-
   - `{Object} [publish]` Allowed and disallowed topics for publish requests, with the following properties:
     - `{Array} [allow]` Clients can publish messages to these topics.
     - `{Array} [disallow]` Clients cannot publish messages to these topics.
@@ -306,7 +305,7 @@ client.
 
 **Parameters:**
 
-- `{String} topic` The topic that was blocked. 
+- `{String} topic` The topic that was blocked.
 - `{MQlobberServer} server` The [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object which received the subscription request.
 
 <sub>Go: [TOC](#tableofcontents) | [AccessControl.events](#toc_accesscontrolevents)</sub>
@@ -320,7 +319,7 @@ client.
 
 **Parameters:**
 
-- `{String} topic` The topic that was blocked. 
+- `{String} topic` The topic that was blocked.
 - `{MQlobberServer} server` The [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object which received the publication request.
 
 <sub>Go: [TOC](#tableofcontents) | [AccessControl.events](#toc_accesscontrolevents)</sub>
@@ -334,7 +333,7 @@ client.
 
 **Parameters:**
 
-- `{String} topic` The topic that was blocked. 
+- `{String} topic` The topic that was blocked.
 - `{MQlobberServer} server` The [`MQlobberServer`](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options) object which was handling the message.
 
 <sub>Go: [TOC](#tableofcontents) | [AccessControl.events](#toc_accesscontrolevents)</sub>
