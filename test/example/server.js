@@ -2,7 +2,7 @@
 var net = require('net'),
     QlobberFSQ = require('qlobber-fsq').QlobberFSQ,
     MQlobberServer = require('mqlobber').MQlobberServer,
-    AccessControl = require('mqlobber-access-control').AccessControl,
+    AccessControl = require('../..').AccessControl,
     fsq = new QlobberFSQ();
 
 fsq.on('start', function ()
