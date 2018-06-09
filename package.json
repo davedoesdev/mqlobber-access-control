@@ -1,7 +1,7 @@
 {
   "name": "mqlobber-access-control",
   "description": "Access control for mqlobber message queues",
-  "version": "6.0.1",
+  "version": "6.0.2",
   "homepage": "https://github.com/davedoesdev/mqlobber-access-control",
   "author": {
     "name": "David Halls",
@@ -35,22 +35,22 @@
     "access-control"
   ],
   "dependencies": {
-    "qlobber": "~3.0.0",
+    "qlobber": "~3.0.2",
     "wu": "~2.1.0"
   },
   "devDependencies": {
-    "grunt": "~1.0.2",
+    "grunt": "~1.0.3",
     "grunt-contrib-jshint": "~1.1.0",
     "grunt-mocha-test": "~0.13.3",
-    "grunt-apidox": "~2.0.0",
+    "grunt-apidox": "~2.0.1",
     "grunt-shell": "~2.1.0",
-    "mocha": "~5.0.4",
+    "mocha": "~5.2.0",
     "chai": "~4.1.2",
-    "nyc": "~11.4.1",
-    "coveralls": "~3.0.0",
-    "mqlobber": "~7.0.0",
-    "qlobber-fsq": "~11.0.1",
-    "async": "~2.6.0",
+    "nyc": "~12.0.2",
+    "coveralls": "~3.0.1",
+    "mqlobber": "~7.0.1",
+    "qlobber-fsq": "~11.0.2",
+    "async": "~2.6.1",
     "rimraf": "~2.6.2"
   },
   "engines": {
