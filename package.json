@@ -1,7 +1,7 @@
 {
   "name": "mqlobber-access-control",
   "description": "Access control for mqlobber message queues",
-  "version": "6.0.3",
+  "version": "7.0.0",
   "homepage": "https://github.com/davedoesdev/mqlobber-access-control",
   "author": {
     "name": "David Halls",
@@ -46,14 +46,14 @@
     "grunt-shell": "~2.1.0",
     "mocha": "~5.2.0",
     "chai": "~4.1.2",
-    "nyc": "~12.0.2",
-    "coveralls": "~3.0.1",
-    "mqlobber": "~7.0.3",
+    "nyc": "~13.0.1",
+    "coveralls": "~3.0.2",
+    "mqlobber": "~8.0.0",
     "qlobber-fsq": "~11.0.4",
     "async": "~2.6.1",
     "rimraf": "~2.6.2"
   },
   "engines": {
-    "node": ">= 6"
+    "node": ">= 8"
   }
 }
