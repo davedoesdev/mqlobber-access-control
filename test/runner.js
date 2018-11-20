@@ -111,6 +111,14 @@ describe('dedup=' + dedup, function () {
 
                 async.each(mqs, function (mq, cb)
                 {
+                    if (type === 'tcp')
+                    {
+                        mq.server.on('error', function (err)
+                        {
+                            expect(err.message).to.equal('This socket has been ended by the other party');
+                        });
+                    }
+
                     mq.client_stream.on('end', cb);
                     mq.server_stream.on('end', function ()
                     {
