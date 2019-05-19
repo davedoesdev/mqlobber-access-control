@@ -76,6 +76,7 @@ describe('example', function ()
                 else if (process.env.USE_QLOBBER_PG === '1')
                 {
                     s = stderr.toString();
+                    console.log(s);
                     pos1 = s.indexOf('Error: stopped');
                     pos2 = s.indexOf('Error: Connection terminated');
                     assert((pos1 === 0) || (pos2 === 0));
