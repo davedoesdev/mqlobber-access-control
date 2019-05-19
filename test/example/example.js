@@ -62,7 +62,7 @@ describe('example', function ()
 
             drain(p, function (code, stdout, stderr)
             {
-                var s;
+                var sl, pos1, pos2;
                 assert.equal(code, 0);
                 assert.equal(stdout.length, 0);
                 if (n === 0)
@@ -76,8 +76,9 @@ describe('example', function ()
                 else if (process.env.USE_QLOBBER_PG === '1')
                 {
                     s = stderr.toString();
-                    pos = s.indexOf('Error: stopped');
-                    assert(pos === 0);
+                    pos1 = s.indexOf('Error: stopped');
+                    pos2 = s.indexOf('Error: Connection terminated');
+                    assert((pos1 === 0) || (pos2 === 0));
                 }
                 else
                 {
