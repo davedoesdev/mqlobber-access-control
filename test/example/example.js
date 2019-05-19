@@ -72,6 +72,13 @@ describe('example', function ()
                     assert(pos1 > 0);
                     assert(pos2 > pos1);
                 }
+                else if (process.env.USE_QLOBBER_PG === '1')
+                {
+                    var s = stderr.toString(),
+                        pos = s.indexOf('Error: stopped');
+
+                    assert(pos === 0);
+                }
                 else
                 {
                     assert.equal(stderr.length, 0);

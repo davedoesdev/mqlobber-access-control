@@ -3,7 +3,21 @@ var net = require('net'),
     QlobberFSQ = require('qlobber-fsq').QlobberFSQ,
     MQlobberServer = require('mqlobber').MQlobberServer,
     AccessControl = require('../..').AccessControl,
+    config = require('config'),
+    fsq;
+
+if (process.env.USE_QLOBBER_PG)
+{
+    var QlobberPG = require('qlobber-pg').QlobberPG;
+    fsq = new QlobberPG(Object.assign(
+    {
+        name: 'test'
+    }, config));
+}
+else
+{
     fsq = new QlobberFSQ();
+}
 
 fsq.on('start', function ()
 {

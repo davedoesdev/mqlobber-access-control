@@ -27,12 +27,12 @@ fsq.on('start', function ()
     var server = net.createServer().listen(parseInt(process.argv[2]));
     server.on('connection', function (c)
     {
-		new AccessControl(
-		{
-			publish: { allow: [ 'foo.bar.#' ],
-					   disallow: [ 'foo.bar.reserved' ] },
-			subscribe: { allow: [ 'foo.#' ] }
-		}).attach(new MQlobberServer(fsq, c));
+        new AccessControl(
+        {
+            publish: { allow: [ 'foo.bar.#' ],
+                       disallow: [ 'foo.bar.reserved' ] },
+            subscribe: { allow: [ 'foo.#' ] }
+        }).attach(new MQlobberServer(fsq, c));
     });
 });
 ```
@@ -78,7 +78,7 @@ var assert = require('assert'),
 
 mq.publish(process.argv[3], function (err)
 {
-	assert.ifError(err);
+    assert.ifError(err);
     c.end();
 }).end('hello');
 ```
@@ -255,8 +255,7 @@ https://github.com/davedoesdev/qlobber-fsq#qlobberfsqprototypesubscribetopic-han
 to match exactly one word in a topic or `#` to match zero or more words.
 For example, `foo.*` would match `foo.bar` whereas `foo.#` would match `foo`,
 `foo.bar` and `foo.bar.wup`. Note these are the default separator and wildcard
-characters. They can be changed when [constructing the `QlobberFSQ` instance]
-(https://github.com/davedoesdev/qlobber-fsq#qlobberfsqoptions) passed to
+characters. They can be changed when [constructing the `QlobberFSQ` instance](https://github.com/davedoesdev/qlobber-fsq#qlobberfsqoptions) or [`QlobberPG` instance](https://github.com/davedoesdev/qlobber-pg) passed to
 [`MQlobberServer`'s constructor](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options).
 
 Note that for subscribe requests, `AccessControl` matches topics you specify

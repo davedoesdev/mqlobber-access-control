@@ -10,10 +10,13 @@ var path = require('path'),
     MQlobberClient = mqlobber.MQlobberClient,
     MQlobberServer = mqlobber.MQlobberServer,
     QlobberFSQ = require('qlobber-fsq').QlobberFSQ,
+    config = require('config'),
     access_control = require('..'),
     AccessControl = access_control.AccessControl,
     chai = require('chai'),
     expect = chai.expect;
+
+var use_qlobber_pg = process.env.USE_QLOBBER_PG === '1';
 
 var timeout = 30;
 var num_queues = 10;
@@ -43,7 +46,7 @@ function read_all(s, cb)
 
 module.exports = function (type, connect_and_accept)
 {
-describe(type, function () {
+describe(type + ', use_qlobber_pg=' + use_qlobber_pg, function () {
 function dedup(dedup) {
 describe('dedup=' + dedup, function () {
     function with_mqs(n, description, f, mqit, options)
@@ -54,20 +57,36 @@ describe('dedup=' + dedup, function () {
 
             var fsq, mqs, ended = false;
 
-            before(function (cb)
+            if (!use_qlobber_pg)
             {
-                var fsq_dir = path.join(path.dirname(require.resolve('qlobber-fsq')), 'fsq');
-                rimraf(fsq_dir, cb);
-            });
+                before(function (cb)
+                {
+                    var fsq_dir = path.join(path.dirname(require.resolve('qlobber-fsq')), 'fsq');
+                    rimraf(fsq_dir, cb);
+                });
+            }
 
             before(function (cb)
             {
-                fsq = new QlobberFSQ(util._extend(
+                var opts = util._extend(
                 {
                     multi_ttl: timeout * 1000,
                     single_ttl: timeout * 2 * 1000,
                     dedup: dedup
-                }, options));
+                }, options);
+ 
+                if (use_qlobber_pg)
+                {
+                    var QlobberPG = require('qlobber-pg').QlobberPG;
+                    fsq = new QlobberPG(Object.assign(
+                    {
+                        name: 'test'
+                    }, config, opts));
+                }
+                else
+                {
+                    fsq = new QlobberFSQ(opts);
+                }
 
                 fsq.on('start', function ()
                 {
@@ -109,8 +128,20 @@ describe('dedup=' + dedup, function () {
                 }
                 ended = true;
 
+                var need_to_unsubscribe = [];
+
                 async.each(mqs, function (mq, cb)
                 {
+                    mq.server.removeAllListeners('unsubscribe_all_requested');
+
+                    if (!mq.server._done)
+                    {
+                        mq.server.on('unsubscribe_all_requested', function ()
+                        {
+                            need_to_unsubscribe.push(mq);
+                        });
+                    }
+
                     if (type === 'tcp')
                     {
                         mq.server.on('error', function (err)
@@ -127,9 +158,15 @@ describe('dedup=' + dedup, function () {
                     mq.client_stream.end();
                 }, function (err)
                 {
-                    fsq.stop_watching(function ()
+                    async.each(need_to_unsubscribe, function (mq, cb)
                     {
-                        cb(err);
+                        mq.server.unsubscribe(cb);
+                    }, function (err2)
+                    {
+                        fsq.stop_watching(function ()
+                        {
+                            cb(err || err2);
+                        });
                     });
                 });
             }
@@ -1303,8 +1340,8 @@ describe('dedup=' + dedup, function () {
             cb();
         });
         
-        s.write(new Buffer(50));
-        s.end(new Buffer(51));
+        s.write(Buffer.alloc(50));
+        s.end(Buffer.alloc(51));
     });
 
     with_mqs(1, 'client should get error if error occurs on limiting transform stream', function (mqs, cb)
