@@ -62,21 +62,21 @@ describe('example', function ()
 
             drain(p, function (code, stdout, stderr)
             {
+                var s;
                 assert.equal(code, 0);
                 assert.equal(stdout.length, 0);
                 if (n === 0)
                 {
-                    var s = stderr.toString(),
-                        pos1 = s.indexOf('blocked subscribe to topic: test'),
-                        pos2 = s.indexOf('blocked publish to topic: foo.bar.reserved');
+                    s = stderr.toString();
+                    pos1 = s.indexOf('blocked subscribe to topic: test');
+                    pos2 = s.indexOf('blocked publish to topic: foo.bar.reserved');
                     assert(pos1 > 0);
                     assert(pos2 > pos1);
                 }
                 else if (process.env.USE_QLOBBER_PG === '1')
                 {
-                    var s = stderr.toString(),
-                        pos = s.indexOf('Error: stopped');
-
+                    s = stderr.toString();
+                    pos = s.indexOf('Error: stopped');
                     assert(pos === 0);
                 }
                 else
