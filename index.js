@@ -206,20 +206,29 @@ var EventEmitter = require('events').EventEmitter,
     util = require('util'),
     wu = require('wu'),
     Transform = require('stream').Transform,
-    QlobberDedup = require('qlobber').QlobberDedup,
-    blocked_matcher = new QlobberDedup();
+    QlobberDedup = require('qlobber').QlobberDedup;
 
 function filter(info, handlers, cb)
 {
-    var blocked_handlers = blocked_matcher.match(info.topic);
-
-    if (blocked_handlers.size === 0)
-    {
-        return cb(null, true, handlers);
-    }
+    var access_controls = new Set();
+    var blocked_handlers = new Set();
 
     cb(null, true, wu(handlers).filter(function (handler)
     {
+        var server = handler.mqlobber_server;
+        if (server)
+        {
+            var access_control = server.mqlobber_access_control;
+            if (access_control && !access_controls.has(access_control))
+            {
+                for (var h of access_control._blocked_matcher.match(info.topic))
+                {
+                    blocked_handlers.add(h);
+                }
+                access_controls.add(access_control);
+            }
+        }
+
         if (blocked_handlers.has(handler))
         {
             var server = handler.mqlobber_server,
@@ -268,13 +277,34 @@ function AccessControl(options)
 
     var ths = this;
 
-    this._pre_subscribe_requested = function (topic, done)
+    this._check_topic = function (topic, done, name, adding)
     {
         if (ths._max_topic_length && (topic.length > ths._max_topic_length))
         {
-            done(new Error('subscribe topic longer than ' +
+            done(new Error(`${name} topic longer than ` +
                            ths._max_topic_length));
-            return ths.emit('subscribe_blocked', topic, this);
+            ths.emit(`${name}_blocked`, topic, this);
+            return false;
+        }
+
+        try
+        {
+            this._blocked_matcher._split(topic, adding);
+        }
+        catch (ex)
+        {
+            done(new Error(`${name} ${ex.message}`));
+            return false;
+        }
+
+        return true;
+    }
+
+    this._pre_subscribe_requested = function (topic, done)
+    {
+        if (!ths._check_topic(topic, done, 'subscribe', true))
+        {
+            return;
         }
 
         if (!allow(ths._matchers.subscribe, topic))
@@ -301,13 +331,11 @@ function AccessControl(options)
 
     this._pre_unsubscribe_requested = function (topic, done)
     {
-        if (ths._max_topic_length && (topic.length > ths._max_topic_length))
+        if (!ths._check_topic(topic, done, 'unsubscribe', false))
         {
-            done(new Error('unsubscribe topic longer than ' +
-                           ths._max_topic_length));
-            return ths.emit('unsubscribe_blocked', topic, this);
+            return;
         }
-        
+
         if (!ths.emit('unsubscribe_requested', this, topic, done) &&
             !this.emit('unsubscribe_requested', topic, done))
         {
@@ -317,11 +345,9 @@ function AccessControl(options)
 
     this._pre_publish_requested = function (topic, duplex, options, done)
     {
-        if (ths._max_topic_length && (topic.length > ths._max_topic_length))
+        if (!ths._check_topic(topic, done, 'publish', false))
         {
-            done(new Error('publish topic longer than ' +
-                           ths._max_topic_length));
-            return ths.emit('publish_blocked', topic, this);
+            return;
         }
 
         if (!allow(ths._matchers.publish, topic))
@@ -405,6 +431,7 @@ function AccessControl(options)
 
     this._blocked_topics = [];
     this._blocked_handlers = new Set();
+    this._blocked_matcher = new QlobberDedup(options);
 
     this.reset(options);
 }
@@ -437,12 +464,20 @@ Topics are the same as [`mqlobber` topics](https://github.com/davedoesdev/mqlobb
 https://github.com/davedoesdev/qlobber-fsq#qlobberfsqprototypesubscribetopic-handler-cb). They're split into words using `.` as the separator. You can use `*`
 to match exactly one word in a topic or `#` to match zero or more words.
 For example, `foo.*` would match `foo.bar` whereas `foo.#` would match `foo`,
-`foo.bar` and `foo.bar.wup`. Note these are the default separator and wildcard
-characters. They can be changed when [constructing the `QlobberFSQ` instance](https://github.com/davedoesdev/qlobber-fsq#qlobberfsqoptions) or [`QlobberPG` instance](https://github.com/davedoesdev/qlobber-pg) passed to
-[`MQlobberServer`'s constructor](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options).
+`foo.bar` and `foo.bar.wup`.
 
-Note that for subscribe requests, `AccessControl` matches topics you specify
-here against topics in the requests, which can themselves contain
+Note these are the default separator and wildcard characters. They can be
+changed when [constructing the `QlobberFSQ` instance](https://github.com/davedoesdev/qlobber-fsq#qlobberfsqoptions) or [`QlobberPG` instance](https://github.com/davedoesdev/qlobber-pg) passed to
+[`MQlobberServer`'s constructor](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options). If you do change them, make sure you specify the
+changed values in `options` too.
+
+There's also a limit on the number of words and `#` words, imposed by
+`Qlobber`. For defaults, see `max_words` and `max_wildcard_somes`
+[here](https://github.com/davedoesdev/qlobber#qlobberoptions). You can change
+the limits by specifying `max_words` and/or `max_wildcard_somes` in `options`.
+
+Note also that for subscribe requests, `AccessControl` matches topics you
+specify here against topics in the requests, which can themselves contain
 wildcard specifiers.
 
 Disallowed topics take precedence over allowed ones. So if a topic in a
@@ -455,7 +490,7 @@ AccessControl.prototype.reset = function (options)
 {
     var ths = this, topic, handler;
 
-    options = options || {};
+    options = Object.assign({}, options);
 
     this._matchers = {
         publish: {},
@@ -466,7 +501,7 @@ AccessControl.prototype.reset = function (options)
     {
         if (options[type] && options[type][access])
         {
-            ths._matchers[type][access] = new QlobberDedup();
+            ths._matchers[type][access] = new QlobberDedup(options);
             for (topic of options[type][access])
             {
                 ths._matchers[type][access].add(topic, true);
@@ -487,7 +522,7 @@ AccessControl.prototype.reset = function (options)
     {
         for (handler of this._blocked_handlers)
         {
-            blocked_matcher.remove(topic, handler);
+            this._blocked_matcher.remove(topic, handler);
         }
     }
 
@@ -497,7 +532,7 @@ AccessControl.prototype.reset = function (options)
     {
         for (handler of this._blocked_handlers)
         {
-            blocked_matcher.add(topic, handler);
+            this._blocked_matcher.add(topic, handler);
         }
     }
 
@@ -520,6 +555,10 @@ Start applying access control to a [`MQlobberServer`](https://github.com/davedoe
 Only one `AccessControl` object can be attached to a `MQlobberServer` object at
 a time. Trying to attach more than one will throw an exception.
 
+If a conflict is detected between `server`'s configuration and the
+`AccessControl` object's configuration (for example different separators or
+different word limit) then an exception will be thrown.
+
 @param {MQlobberServer} server Object to which to apply access control.
 */
 AccessControl.prototype.attach = function (server)
@@ -529,13 +568,22 @@ AccessControl.prototype.attach = function (server)
         throw new Error('server has access control');
     }
 
+    if ((server.fsq._matcher._separator !== this._blocked_matcher._separator) ||
+        (server.fsq._matcher._wildcard_one !== this._blocked_matcher._wildcard_one) ||
+        (server.fsq._matcher._wildcard_some !== this._blocked_matcher._wildcard_some) ||
+        (server.fsq._matcher._max_words !== this._blocked_matcher._max_words) ||
+        (server.fsq._matcher._max_wildcard_somes !== this._blocked_matcher._max_wildcard_somes))
+    {
+        throw new Error('options mismatch');
+    }
+
     server.on('pre_subscribe_requested', this._pre_subscribe_requested);
     server.on('pre_unsubscribe_requested', this._pre_unsubscribe_requested);
     server.on('pre_publish_requested', this._pre_publish_requested);
 
     for (var topic of this._blocked_topics)
     {
-        blocked_matcher.add(topic, server.handler);
+        this._blocked_matcher.add(topic, server.handler);
     }
 
     this._blocked_handlers.add(server.handler);
@@ -564,7 +612,7 @@ AccessControl.prototype.detach = function (server)
 
     for (var topic of this._blocked_topics)
     {
-        blocked_matcher.remove(topic, server.handler);
+        this._blocked_matcher.remove(topic, server.handler);
     }
 
     this._blocked_handlers.delete(server.handler);

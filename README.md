@@ -254,12 +254,20 @@ Topics are the same as [`mqlobber` topics](https://github.com/davedoesdev/mqlobb
 https://github.com/davedoesdev/qlobber-fsq#qlobberfsqprototypesubscribetopic-handler-cb). They're split into words using `.` as the separator. You can use `*`
 to match exactly one word in a topic or `#` to match zero or more words.
 For example, `foo.*` would match `foo.bar` whereas `foo.#` would match `foo`,
-`foo.bar` and `foo.bar.wup`. Note these are the default separator and wildcard
-characters. They can be changed when [constructing the `QlobberFSQ` instance](https://github.com/davedoesdev/qlobber-fsq#qlobberfsqoptions) or [`QlobberPG` instance](https://github.com/davedoesdev/qlobber-pg) passed to
-[`MQlobberServer`'s constructor](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options).
+`foo.bar` and `foo.bar.wup`.
 
-Note that for subscribe requests, `AccessControl` matches topics you specify
-here against topics in the requests, which can themselves contain
+Note these are the default separator and wildcard characters. They can be
+changed when [constructing the `QlobberFSQ` instance](https://github.com/davedoesdev/qlobber-fsq#qlobberfsqoptions) or [`QlobberPG` instance](https://github.com/davedoesdev/qlobber-pg) passed to
+[`MQlobberServer`'s constructor](https://github.com/davedoesdev/mqlobber#mqlobberserverfsq-stream-options). If you do change them, make sure you specify the
+changed values in `options` too.
+
+There's also a limit on the number of words and `#` words, imposed by
+`Qlobber`. For defaults, see `max_words` and `max_wildcard_somes`
+[here](https://github.com/davedoesdev/qlobber#qlobberoptions). You can change
+the limits by specifying `max_words` and/or `max_wildcard_somes` in `options`.
+
+Note also that for subscribe requests, `AccessControl` matches topics you
+specify here against topics in the requests, which can themselves contain
 wildcard specifiers.
 
 Disallowed topics take precedence over allowed ones. So if a topic in a
@@ -276,6 +284,10 @@ Access control is only applied where topics are specified.
 
 Only one `AccessControl` object can be attached to a `MQlobberServer` object at
 a time. Trying to attach more than one will throw an exception.
+
+If a conflict is detected between `server`'s configuration and the
+`AccessControl` object's configuration (for example different separators or
+different word limit) then an exception will be thrown.
 
 **Parameters:**
 

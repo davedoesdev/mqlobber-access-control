@@ -1,7 +1,7 @@
 {
   "name": "mqlobber-access-control",
   "description": "Access control for mqlobber message queues",
-  "version": "7.0.2",
+  "version": "8.0.0",
   "homepage": "https://github.com/davedoesdev/mqlobber-access-control",
   "author": {
     "name": "David Halls",
@@ -35,26 +35,26 @@
     "access-control"
   ],
   "dependencies": {
-    "qlobber": "~3.1.0",
-    "wu": "~2.1.0"
+    "qlobber": "^4.0.1",
+    "wu": "^2.1.0"
   },
   "devDependencies": {
-    "async": "~2.6.2",
-    "chai": "~4.2.0",
-    "coveralls": "~3.0.3",
-    "grunt": "~1.0.4",
-    "grunt-apidox": "~2.0.1",
-    "grunt-contrib-jshint": "~2.1.0",
-    "grunt-mocha-test": "~0.13.3",
-    "grunt-shell": "~3.0.1",
-    "mocha": "~6.1.4",
-    "mqlobber": "~8.0.2",
-    "nyc": "~14.1.1",
-    "qlobber-fsq": "~11.0.10",
-    "qlobber-pg": "^1.0.0",
-    "rimraf": "~2.6.3"
+    "async": "^3.1.0",
+    "chai": "^4.2.0",
+    "coveralls": "^3.0.9",
+    "grunt": "^1.0.4",
+    "grunt-apidox": "^2.0.7",
+    "grunt-contrib-jshint": "^2.1.0",
+    "grunt-mocha-test": "^0.13.3",
+    "grunt-shell": "^3.0.1",
+    "mocha": "^6.2.2",
+    "mqlobber": "^9.0.0",
+    "nyc": "^14.1.1",
+    "qlobber-fsq": "^12.0.0",
+    "qlobber-pg": "^2.0.0",
+    "rimraf": "^3.0.0"
   },
   "engines": {
-    "node": ">= 8"
+    "node": ">= 12"
   }
 }
