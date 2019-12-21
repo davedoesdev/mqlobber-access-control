@@ -1377,7 +1377,14 @@ describe(`options=${JSON.stringify(gopts)}`, function () {
         var ac = new AccessControl(),
             mq = mqs[0],
             warnings = [],
-            topic = t(new Array(4).fill('#').join('.'));
+            topic = t(new Array(4).fill('#').join('.')),
+            ptopic = topic;
+
+        if (use_qlobber_pg)
+        {
+            // psql can't use wildcards as publish topics
+            ptopic = t(new Array(4).fill('X').join('.'));
+        }
 
         expect(function ()
         {
