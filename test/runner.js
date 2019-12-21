@@ -1417,7 +1417,7 @@ describe(`options=${JSON.stringify(gopts)}`, function () {
         {
             expect(err.message).to.equal('server error');
             expect(warnings[0].message).to.equal('subscribe too many wildcard somes');
-            mq.client.publish(topic, function (err)
+            mq.client.publish(ptopic, function (err)
             {
                 if (err) { return cb(err); }
                 setTimeout(function ()
