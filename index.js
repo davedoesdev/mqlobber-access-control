@@ -215,10 +215,10 @@ function filter(info, handlers, cb)
 
     cb(null, true, wu(handlers).filter(function (handler)
     {
-        var server = handler.mqlobber_server;
+        var server = handler.mqlobber_server, access_control;
         if (server)
         {
-            var access_control = server.mqlobber_access_control;
+            access_control = server.mqlobber_access_control;
             if (access_control && !access_controls.has(access_control))
             {
                 for (var h of access_control._blocked_matcher.match(info.topic))
@@ -231,11 +231,7 @@ function filter(info, handlers, cb)
 
         if (blocked_handlers.has(handler))
         {
-            var server = handler.mqlobber_server,
-                access_control = server.mqlobber_access_control;
-
             access_control.emit('message_blocked', info.topic, server);
-
             return false;
         }
 
@@ -298,7 +294,7 @@ function AccessControl(options)
         }
 
         return true;
-    }
+    };
 
     this._pre_subscribe_requested = function (topic, done)
     {
