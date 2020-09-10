@@ -62,7 +62,7 @@ describe('example', function ()
 
             drain(p, function (code, stdout, stderr)
             {
-                var sl, pos1, pos2;
+                var s, pos1, pos2, pos3;
                 assert.equal(code, 0);
                 assert.equal(stdout.length, 0);
                 if (n === 0)
@@ -78,7 +78,8 @@ describe('example', function ()
                     s = stderr.toString();
                     pos1 = s.indexOf('Error: stopped');
                     pos2 = s.indexOf('Error: Connection terminated');
-                    assert((stderr.length === 0) || (pos1 === 0) || (pos2 === 0));
+                    pos3 = s.indexOf('Error: Client was closed and is not queryable');
+                    assert((stderr.length === 0) || (pos1 === 0) || (pos2 === 0) || (pos3 === 0));
                 }
                 else
                 {

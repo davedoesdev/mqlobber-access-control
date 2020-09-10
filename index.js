@@ -59,11 +59,14 @@ mq.subscribe(topic, function (s, info)
             msg += data.toString();
         }
     });
+    s.on('finish', function ()
+    {
+        c.end();
+    });
     s.on('end', function ()
     {
         console.log('received', info.topic, msg);
         assert.equal(msg, 'hello');
-        c.end();
     });
 }, assert.ifError);
 ```
@@ -194,7 +197,7 @@ grunt lint
 grunt coverage
 ```
 
-[Instanbul](http://gotwarlost.github.io/istanbul/) results are available [here](http://rawgit.davedoesdev.com/davedoesdev/mqlobber-access-control/master/coverage/lcov-report/index.html).
+[Istanbul](http://gotwarlost.github.io/istanbul/) results are available [here](http://rawgit.davedoesdev.com/davedoesdev/mqlobber-access-control/master/coverage/lcov-report/index.html).
 
 Coveralls page is [here](https://coveralls.io/r/davedoesdev/mqlobber-access-control).
 
